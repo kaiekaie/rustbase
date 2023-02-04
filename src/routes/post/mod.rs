@@ -1,17 +1,14 @@
-use rocket::form::Form;
-
 use core::result::Result;
-#[derive(FromForm)]
-pub struct Task<'r> {
-    #[field(validate = len(1..))]
-    description: &'r str,
-    completed: bool,
+
+use rocket::serde::{json::Json, Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Message<'r> {
+    contents: &'r str,
 }
 
-#[post("/", data = "<task>")]
-pub fn post(task: Form<Task<'_>>) -> Result<String, ()> {
-    Ok(format!(
-        "Hello, {} year old named {}!",
-        task.description, task.completed
-    ))
+#[post("/<collection>", format = "json", data = "<collectionItem>")]
+pub fn post(collection: &str, collectionItem: Json<Message<'_>>) -> Result<String, ()> {
+    Ok(format!("Posting new item to {}", collection,))
 }
