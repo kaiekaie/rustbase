@@ -1,10 +1,10 @@
 mod routes;
-use routes::get::hello;
-use routes::post::new;
+use routes::get::get;
+use routes::post::post;
 #[macro_use]
 extern crate rocket;
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/api", routes![hello, new])
+    rocket::build().mount("/api", routes![get, post])
 }

@@ -9,7 +9,7 @@ pub struct Task<'r> {
 }
 
 #[post("/", data = "<task>")]
-pub fn new(task: Form<Task<'_>>) -> Result<String, ()> {
+pub fn post(task: Form<Task<'_>>) -> Result<String, ()> {
     Ok(format!(
         "Hello, {} year old named {}!",
         task.description, task.completed
