@@ -5,6 +5,9 @@ use routes::post::post;
 extern crate rocket;
 
 #[launch]
-fn rocket() -> _ {
+pub fn init() -> _ {
     rocket::build().mount("/api", routes![get, post])
 }
+
+#[cfg(test)]
+mod tests;
