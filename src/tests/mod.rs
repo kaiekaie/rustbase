@@ -11,7 +11,7 @@ mod test {
     #[test]
     fn get_route() {
         let client = Client::tracked(init()).expect("valid rocket instance");
-        let mut response = client.get(uri!("/api/per/28")).dispatch();
+        let response = client.get(uri!("/api/per/28")).dispatch();
         assert_eq!(response.status(), Status::Ok);
         assert_eq!(
             response.into_string().unwrap(),
@@ -29,7 +29,7 @@ mod test {
         });
 
         let client = Client::tracked(init()).expect("valid rocket instance");
-        let mut response = client
+        let response = client
             .post(uri!("/api/testing"))
             .header(ContentType::JSON)
             .body(john.to_string())
