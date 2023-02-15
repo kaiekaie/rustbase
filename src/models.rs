@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use chrono::NaiveDateTime;
 use diesel::Queryable;
 use serde::{Deserialize, Serialize};
