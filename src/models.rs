@@ -1,12 +1,14 @@
-use chrono::{DateTime, Utc};
+use std::time::SystemTime;
+
+use chrono::NaiveDateTime;
 use diesel::Queryable;
 use serde::{Deserialize, Serialize};
 #[derive(Queryable, Serialize, Deserialize)]
 pub struct RustbaseCollections {
     pub id: i32,
     pub name: String,
-    pub created: DateTime<Utc>,
-    pub modified: DateTime<Utc>,
+    pub created: NaiveDateTime,
+    pub modified: NaiveDateTime,
 }
 
 #[derive(Queryable)]
