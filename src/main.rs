@@ -1,3 +1,4 @@
+mod entities;
 mod routes;
 use routes::get::get;
 use routes::post::post;
