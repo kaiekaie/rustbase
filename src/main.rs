@@ -4,6 +4,7 @@ use routes::get::get;
 use routes::post::post;
 #[macro_use]
 extern crate rocket;
+extern crate serde;
 
 #[launch]
 pub fn init() -> _ {

@@ -1,12 +1,11 @@
 -- Your SQL goes here
 
-CREATE TABLE collections (
+CREATE TABLE documents (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
-  created timestamp default CURRENT_TIMESTAMP not null,
-  modified  timestamp default CURRENT_TIMESTAMP not null
-);
-
+  created TIMESTAMP NOT NULL DEFAULT NOW(),
+  modified TIMESTAMP NOT NULL DEFAULT NOW()
+)
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -15,4 +14,4 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_customer_modtime BEFORE UPDATE ON collections FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_customer_modtime BEFORE UPDATE ON documents FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

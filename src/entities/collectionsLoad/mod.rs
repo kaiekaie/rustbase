@@ -1,16 +1,12 @@
+use self::models::*;
 use diesel::prelude::*;
-use models::*;
 use rustbase::*;
 
-pub fn collectionsLoad() {
-    use self::schema::collections::dsl::*;
-
+pub fn postsLoad() -> Vec<rustbase::models::RustbaseCollections> {
+    use self::schema::documents::dsl::*;
     let connection = &mut establish_connection();
-    let results = collections
+    return documents
         .limit(5)
-        .load::<Collections>(connection)
+        .load::<RustbaseCollections>(connection)
         .expect("Error loading posts");
-
-    println!("Displaying {} posts", results.len());
-    for post in results {}
 }
