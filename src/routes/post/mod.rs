@@ -1,14 +1,13 @@
-use core::result::Result;
+use rocket::http::RawStr;
+use rocket_contrib::json::Json;
+use serde::{Deserialize, Serialize};
 
-use rocket::serde::json::{serde_json::Map, Json, Value};
-
-#[post("/<collection>", format = "json", data = "<collection_item>")]
-pub fn post(collection: &str, collection_item: Json<Map<String, Value>>) -> Result<String, ()> {
-    let obj = Value::Object(collection_item.into_inner());
-
-    Ok(format!(
-        "Posting new item to {} , {}",
-        collection,
-        obj.to_string()
-    ))
+#[derive(Deserialize, Serialize)]
+pub struct Task {
+    description: String,
+    complete: bool,
+}
+#[post("/<collection>", data = "<collection_item>")]
+pub fn post(collection: &RawStr, collection_item: Json<Task>) -> Json<Task> {
+    return collection_item;
 }

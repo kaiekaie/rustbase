@@ -1,11 +1,16 @@
-use crate::entities::collectionsLoad::posts_load;
-
+use self::models::*;
+use diesel::prelude::*;
+use rocket_contrib::json::Json;
+use rustbase::*;
 #[get("/collections")]
-pub fn get() -> String {
-    let vals = posts_load();
+pub fn get() -> Json<Vec<Documents>> {
+    use self::schema::documents::dsl::*;
+    let connection = &mut establish_connection();
 
-    match !vals.is_empty() {
-        true => serde_json::to_string(&vals).unwrap(),
-        false => format!("empty collections"),
-    }
+    let results = documents
+        .limit(5)
+        .load::<Documents>(connection)
+        .expect("Error loading posts");
+
+    return Json(results);
 }

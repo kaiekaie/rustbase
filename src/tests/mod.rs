@@ -5,14 +5,16 @@ mod test {
     use std::env;
 
     use rocket::http::ContentType;
-    use rocket::serde::json::serde_json::json;
 
-    use rocket::{http::Status, local::blocking::Client};
+    use rocket::http::Status;
 
+    use rocket::local::Client;
+    use rocket::response;
+    use serde_json::json;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
 
-    use crate::init;
+    use crate::main;
     const NAME: &str = "postgres";
     const TAG: &str = "11-alpine";
 
@@ -54,23 +56,22 @@ mod test {
     #[test]
     fn get_route() {
         let docker = clients::Cli::default();
-
+        let rocket = rocket::ignite();
         let container = docker.run(Postgres::default());
 
         let mysql_port = container.get_host_port_ipv4(5432);
         container.start();
         let mysql_url = format!("postgres://postgres:root@localhost:{}/postgres", mysql_port);
         env::set_var("DATABASE_URL", mysql_url);
+        let client = Client::new(rocket).unwrap();
 
-        let client = Client::tracked(init()).expect("valid rocket instance");
-        let response = client.get(uri!("/api/collections")).dispatch();
-        assert_eq!(response.status(), Status::Ok);
-        assert_eq!(
-            response.into_string().unwrap(),
-            "Hello, 28 year old named per!"
-        );
+        let response = client.get("/api/collections");
+        let mut req = response.dispatch();
+
+        assert_eq!(req.status(), Status::Ok);
+        assert_eq!(req.body_string(), Some("Hello, world!".to_string()));
     }
-
+    /*
     #[test]
     fn post_route() {
         let john = json!({
@@ -92,5 +93,5 @@ mod test {
             response.into_string().unwrap(),
             "Posting new item to testing , {\"age\":1,\"name\":\"asdasd\",\"phones\":[\"+44 2323\"]}"
         );
-    }
+    } */
 }

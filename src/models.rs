@@ -1,8 +1,9 @@
 use chrono::NaiveDateTime;
 use diesel::Queryable;
 use serde::{Deserialize, Serialize};
-#[derive(Queryable, Serialize, Deserialize)]
-pub struct RustbaseCollections {
+
+#[derive(Queryable, Serialize, Deserialize, Clone, Debug)]
+pub struct Documents {
     pub id: i32,
     pub name: String,
     pub created: NaiveDateTime,
