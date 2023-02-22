@@ -4,17 +4,19 @@ mod test {
     use std::collections::HashMap;
     use std::env;
 
-    use rocket::http::ContentType;
-
+    use diesel::insert_into;
+    use diesel::prelude::*;
     use rocket::http::Status;
 
     use rocket::local::Client;
-    use rocket::response;
-    use serde_json::json;
+
+    use rustbase::establish_connection;
+    use rustbase::run_migrations;
+
+    use crate::routes::get::static_rocket_route_info_for_get;
+    use rustbase::*;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
-
-    use crate::main;
     const NAME: &str = "postgres";
     const TAG: &str = "11-alpine";
 
@@ -55,15 +57,25 @@ mod test {
     }
     #[test]
     fn get_route() {
+        use self::schema::documents::dsl::*;
         let docker = clients::Cli::default();
-        let rocket = rocket::ignite();
-        let container = docker.run(Postgres::default());
 
+        let container = docker.run(Postgres::default());
         let mysql_port = container.get_host_port_ipv4(5432);
-        container.start();
         let mysql_url = format!("postgres://postgres:root@localhost:{}/postgres", mysql_port);
+        container.start();
         env::set_var("DATABASE_URL", mysql_url);
-        let client = Client::new(rocket).unwrap();
+
+        let connection = &mut establish_connection();
+        run_migrations(connection);
+
+        let rows_inserted = insert_into(documents)
+            .values(name.eq("asd"))
+            .execute(connection);
+
+        assert_eq!(Ok(1), rows_inserted);
+        let ro = rocket::ignite().mount("/api", routes![get]);
+        let client = Client::new(ro).unwrap();
 
         let response = client.get("/api/collections");
         let mut req = response.dispatch();
