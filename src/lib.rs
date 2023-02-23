@@ -1,4 +1,3 @@
-use diesel::migration::MigrationVersion;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;

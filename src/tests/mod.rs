@@ -12,6 +12,7 @@ mod test {
 
     use rustbase::establish_connection;
     use rustbase::run_migrations;
+    use serde_json::Value;
 
     use crate::routes::get::static_rocket_route_info_for_get;
     use rustbase::*;
@@ -70,7 +71,7 @@ mod test {
         run_migrations(connection);
 
         let rows_inserted = insert_into(documents)
-            .values(name.eq("asd"))
+            .values(name.eq("collectionName"))
             .execute(connection);
 
         assert_eq!(Ok(1), rows_inserted);
@@ -81,7 +82,11 @@ mod test {
         let mut req = response.dispatch();
 
         assert_eq!(req.status(), Status::Ok);
-        assert_eq!(req.body_string(), Some("Hello, world!".to_string()));
+
+        let body = req.body_string().unwrap();
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v[0]["name"], "collectionName")
+        /*   assert_eq!(req.body_string(), Some("[{\"id\":1,\"name\":\"asd\",\"created\":\"2023-02-23T11:20:01.135427\",\"modified\":\"2023-02-23T11:20:01.135427\"}]".to_string())); */
     }
     /*
     #[test]
