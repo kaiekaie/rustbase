@@ -17,4 +17,5 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - run: rustup toolchain install nightly-2023-02-15
       - run: cargo build --release --all-features
