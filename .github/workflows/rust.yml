@@ -20,4 +20,5 @@ jobs:
       - run: rustup toolchain install nightly-2023-02-15
       - run: rustup default nightly-2023-02-15
       - run: cargo build --release --all-features
-      - run: cargo test
+      - name: Test
+        run: cargo test
