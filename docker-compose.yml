@@ -3,6 +3,8 @@ services:
   rust:
     container_name: rustplatform
     image: rustplatform
+    depends_on:
+      - sql
     platform: linux/amd64
     build: .
   sql:
