@@ -36,11 +36,11 @@ pub struct Schemas {
     pub uniques: Option<bool>,
 }
 
-#[derive(Queryable, Insertable, Identifiable, Serialize, Debug, PartialEq, Associations)]
-#[diesel(table_name = documents_to_schemas)]
-#[diesel(primary_key(document_id, schema_id))]
-#[belongs_to(Schemas, foreign_key = "schema_id")]
-#[belongs_to(Documents, foreign_key = "document_id")]
+
+#[derive( Debug, PartialEq,Queryable,Identifiable,Associations,Serialize,Deserialize)]
+#[belongs_to(Schemas,foreign_key = "schema_id")]
+#[belongs_to(Documents,foreign_key = "document_id")]
+#[diesel(primary_key(document_id,schema_id), table_name = documents_to_schemas)]
 pub struct DocumentsWithSchemas {
     pub document_id: i32,
     pub schema_id: i32,

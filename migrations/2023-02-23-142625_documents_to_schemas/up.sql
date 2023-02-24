@@ -4,8 +4,8 @@
 
 CREATE TABLE documents_to_schemas (
 
-  document_id SERIAL REFERENCES documents(id),
-  schema_id  SERIAL REFERENCES schemas(id),
+  document_id INTEGER REFERENCES documents(id),
+  schema_id  INTEGER REFERENCES schemas(id),
 
   PRIMARY KEY(document_id, schema_id)
 );

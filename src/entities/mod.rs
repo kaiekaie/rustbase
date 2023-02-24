@@ -1,3 +1,5 @@
+
+
 use diesel::prelude::*;
 use rustbase::{
     establish_connection,
@@ -5,29 +7,25 @@ use rustbase::{
     schema::{documents, documents_to_schemas, schemas},
 };
 use std::error::Error;
+use rustbase::schema::documents_to_schemas::dsl::documents_to_schemas;
 
-pub fn getDocumentsWithSchemas() -> Result<(), Box<dyn Error + Send + Sync>> {
+pub fn get_documents_with_schemas() -> Result<Vec<Documents>, Box<dyn Error + Send + Sync>> {
     let connection = &mut establish_connection();
 
-    let documents = documents::table
+    let all_documents = documents::table
         .select(Documents::as_select())
         .load(connection)?;
 
-    let schemas = schemas::table
-        .select(Schemas::as_select())
-        .load(connection)?;
 
-    let documentsAndSchema = DocumentsWithSchemas::belonging_to(&documents)
-        .inner_join(schemas::table)
-        .select(Schemas::as_select())
-        .load(connection)?;
 
-    let results = documentsAndSchema
-        .grouped_by(&documents)
-        .into_iter()
-        .zip(documents)
-        .map(|(b, documents)| (documents, b.into_iter().map(|(_, schema)| schema).collect()))
-        .collect();
 
-    Ok(())
+    //
+    // let results = documentsAndSchema
+    //     .grouped_by(&documents)
+    //     .into_iter()
+    //     .zip(documents)
+    //     .map(|(b, documents)| (documents, b.into_iter().map(|(_, schema)| schema).collect()))
+    //     .collect();
+
+    Ok(all_documents)
 }

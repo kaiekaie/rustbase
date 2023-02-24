@@ -1329,7 +1329,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustbase"
+name = "rustplatform"
 version = "0.0.1"
 dependencies = [
  "chrono",

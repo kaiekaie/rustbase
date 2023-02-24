@@ -43,4 +43,8 @@ diesel::table! {
 diesel::joinable!(documents_to_schemas -> documents (document_id));
 diesel::joinable!(documents_to_schemas -> schemas (schema_id));
 
-diesel::allow_tables_to_appear_in_same_query!(documents, documents_to_schemas, schemas,);
+diesel::allow_tables_to_appear_in_same_query!(
+    documents,
+    documents_to_schemas,
+    schemas,
+);
