@@ -1,8 +1,8 @@
 version: "3.8"
 services:
   rust:
-    container_name: rustbase
-    image: rustbase
+    container_name: rustplatform
+    image: rustplatform
     platform: linux/amd64
     build: .
   sql:
@@ -12,6 +12,6 @@ services:
       - 5433:5432
     environment:
       - POSTGRES_PASSWORD=root
-      - POSTGRES_DB=rustbase
+      - POSTGRES_DB=rustplatform
     volumes:
       - ./data:/var/lib/postgresql/data
