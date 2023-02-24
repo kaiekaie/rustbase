@@ -4,8 +4,14 @@ CREATE TABLE documents (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT NOW(),
-  modified TIMESTAMP NOT NULL DEFAULT NOW()
+  modified TIMESTAMP NOT NULL DEFAULT NOW(),
+  listRule VARCHAR,
+  viewRule VARCHAR,
+  createRule VARCHAR,
+  updateRule VARCHAR,
+  deleteRule VARCHAR
 );
+
 
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$

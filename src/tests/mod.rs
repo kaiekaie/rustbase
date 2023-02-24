@@ -85,6 +85,7 @@ mod test {
 
         let body = req.body_string().unwrap();
         let v: Value = serde_json::from_str(&body).unwrap();
+
         assert_eq!(v[0]["name"], "collectionName")
         /*   assert_eq!(req.body_string(), Some("[{\"id\":1,\"name\":\"asd\",\"created\":\"2023-02-23T11:20:01.135427\",\"modified\":\"2023-02-23T11:20:01.135427\"}]".to_string())); */
     }

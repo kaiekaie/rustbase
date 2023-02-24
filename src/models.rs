@@ -1,19 +1,47 @@
 use chrono::NaiveDateTime;
-use diesel::Queryable;
+use diesel::prelude::*;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Serialize, Deserialize, Clone, Debug)]
+use crate::schema::{documents, documents_to_schemas, schemas};
+
+#[derive(Queryable, Identifiable, Serialize, Selectable, Debug, PartialEq)]
+#[diesel(table_name = documents)]
 pub struct Documents {
     pub id: i32,
     pub name: String,
     pub created: NaiveDateTime,
     pub modified: NaiveDateTime,
+    pub listrule: Option<String>,
+    pub viewrule: Option<String>,
+    pub createrule: Option<String>,
+    pub updaterule: Option<String>,
+    pub deleterule: Option<String>,
 }
 
-#[derive(Queryable)]
-pub struct Posts {
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum ColumnTypes {
+    Text,
+    Number,
+    Mail,
+}
+
+#[derive(Queryable, Selectable, Identifiable, Serialize, PartialEq, Debug)]
+#[diesel(table_name = schemas)]
+pub struct Schemas {
     pub id: i32,
-    pub title: String,
-    pub body: String,
-    pub published: bool,
+    pub name: Option<String>,
+    pub column_type: Option<ColumnTypes>,
+    pub required: Option<bool>,
+    pub uniques: Option<bool>,
+}
+
+#[derive(Queryable, Insertable, Identifiable, Serialize, Debug, PartialEq, Associations)]
+#[diesel(table_name = documents_to_schemas)]
+#[diesel(primary_key(document_id, schema_id))]
+#[belongs_to(Schemas, foreign_key = "schema_id")]
+#[belongs_to(Documents, foreign_key = "document_id")]
+pub struct DocumentsWithSchemas {
+    pub document_id: i32,
+    pub schema_id: i32,
 }
