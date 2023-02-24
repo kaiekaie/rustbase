@@ -10,12 +10,12 @@ mod test {
 
     use rocket::local::Client;
 
-    use rustbase::establish_connection;
-    use rustbase::run_migrations;
+    use rustplatform::establish_connection;
+    use rustplatform::run_migrations;
     use serde_json::Value;
 
     use crate::routes::get::static_rocket_route_info_for_get;
-    use rustbase::*;
+    use rustplatform::*;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
     const NAME: &str = "postgres";

@@ -1,5 +1,5 @@
 # Rustplatform
-![example workflow](https://github.com/kaiekaie/rustbase/actions/workflows/rust.yml/badge.svg
+![example workflow](https://github.com/kaiekaie/rustplatform/actions/workflows/rust.yml/badge.svg
 )
 
 

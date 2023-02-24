@@ -1,13 +1,11 @@
-
-
 use diesel::prelude::*;
-use rustbase::{
+use rustplatform::schema::documents_to_schemas::dsl::documents_to_schemas;
+use rustplatform::{
     establish_connection,
     models::{Documents, DocumentsWithSchemas, Schemas},
-    schema::{documents, documents_to_schemas, schemas},
+    schema::{documents, schemas},
 };
 use std::error::Error;
-use rustbase::schema::documents_to_schemas::dsl::documents_to_schemas;
 
 pub fn get_documents_with_schemas() -> Result<Vec<Documents>, Box<dyn Error + Send + Sync>> {
     let connection = &mut establish_connection();
@@ -15,9 +13,6 @@ pub fn get_documents_with_schemas() -> Result<Vec<Documents>, Box<dyn Error + Se
     let all_documents = documents::table
         .select(Documents::as_select())
         .load(connection)?;
-
-
-
 
     //
     // let results = documentsAndSchema
