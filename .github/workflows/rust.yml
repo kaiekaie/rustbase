@@ -20,5 +20,15 @@ jobs:
       - run: rustup toolchain install nightly-2023-02-15
       - run: rustup default nightly-2023-02-15
       - run: cargo build --release --all-features
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: rustup toolchain install nightly-2023-02-15
+      - run: rustup default nightly-2023-02-15
       - name: Test
         run: cargo test
