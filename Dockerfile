@@ -12,5 +12,5 @@ RUN rustup toolchain install nightly-2023-02-15
 RUN rustup default nightly-2023-02-15
 
 RUN cargo build --release --all-features
-ENTRYPOINT [ "cargo" ]
-CMD [ "run" ]
+ENTRYPOINT [ "./" ]
+CMD [ "target/debug/rustplatform" ]

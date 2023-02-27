@@ -1,2 +1,5 @@
-data
-target
+/target
+.env*
+/data
+.DS_Store
+.idea
