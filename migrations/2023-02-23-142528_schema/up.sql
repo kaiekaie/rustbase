@@ -12,5 +12,6 @@ CREATE TABLE schema(
   name VARCHAR,
   column_type COLUMN_TYPES,
   required BOOLEAN,
-  uniques BOOLEAN
+  uniques BOOLEAN,
+  document_id  INTEGER REFERENCES document(id)
 );

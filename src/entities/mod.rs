@@ -2,27 +2,41 @@ use diesel::prelude::*;
 
 use rustplatform::{
     establish_connection,
-    models::{Document, DocumentWithschema, Schema},
-    schema::{document, document_to_schema, schema},
+    models::{Document, DocumentWithSchemas, Schema},
+    schema::{
+        document::{self, id},
+        schema,
+    },
 };
+
 use std::error::Error;
 
-pub fn get_document_with_schema() -> Result<Vec<Document>, Box<dyn Error + Send + Sync>> {
+pub fn get_document_with_schema() -> Result<Vec<DocumentWithSchemas>, Box<dyn Error + Send + Sync>>
+{
     let connection = &mut establish_connection();
 
-    let all_document = document::table
-        .select(Document::as_select())
-        .load(connection)?;
+    let all_documents = document::table.load::<Document>(connection)?;
 
-    let documents = DocumentWithschema::belonging_to(&all_document)
-        .inner_join(schema::table)
+    let schemas: Vec<Schema> = Schema::belonging_to(&all_documents)
         .select(Schema::as_select())
         .load(connection)?;
 
-    /*     let docs_schemas = DocumentWithschema::belonging_to(&documents)
+    let everyThing = schemas
+        .grouped_by(&all_documents)
+        .into_iter()
+        .zip(all_documents)
+        .map(|(schema, doc)| {
+            let document_with_schema = DocumentWithSchemas::new(&doc, schema);
+
+            return document_with_schema;
+        })
+        .collect::<Vec<DocumentWithSchemas>>();
+
+    /*     let documents = document::table
     .inner_join(schema::table)
     .select((Document::as_select(), Schema::as_select()))
-    .load(connection)?; */
+    .load::<(Document, Schema)>(connection)?
+    .grouped_by(Schema::as_select); */
 
-    Ok(all_document)
+    Ok(everyThing)
 }

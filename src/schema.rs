@@ -21,13 +21,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    document_to_schema (document_id, schema_id) {
-        document_id -> Int4,
-        schema_id -> Int4,
-    }
-}
-
-diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ColumnTypes;
 
@@ -37,10 +30,13 @@ diesel::table! {
         column_type -> Nullable<ColumnTypes>,
         required -> Nullable<Bool>,
         uniques -> Nullable<Bool>,
+        document_id -> Nullable<Int4>,
     }
 }
 
-diesel::joinable!(document_to_schema -> document (document_id));
-diesel::joinable!(document_to_schema -> schema (schema_id));
+diesel::joinable!(schema -> document (document_id));
 
-diesel::allow_tables_to_appear_in_same_query!(document, document_to_schema, schema,);
+diesel::allow_tables_to_appear_in_same_query!(
+    document,
+    schema,
+);
