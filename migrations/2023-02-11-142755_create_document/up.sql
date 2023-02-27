@@ -21,4 +21,4 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_customer_modtime BEFORE UPDATE ON document FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_document_modtime BEFORE UPDATE ON document FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

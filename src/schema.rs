@@ -21,6 +21,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    record (id) {
+        id -> Int4,
+        name -> Varchar,
+        created -> Timestamp,
+        modified -> Timestamp,
+        document_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ColumnTypes;
 
@@ -34,9 +44,11 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(record -> document (document_id));
 diesel::joinable!(schema -> document (document_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     document,
+    record,
     schema,
 );

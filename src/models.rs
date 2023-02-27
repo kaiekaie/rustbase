@@ -43,6 +43,20 @@ pub struct DocumentWithSchemas {
     pub schemas: Vec<Schema>,
 }
 
+#[derive(
+    Queryable, Identifiable, Serialize, Selectable, Debug, PartialEq, Associations, Deserialize,
+)]
+#[diesel(table_name = schema)]
+#[diesel(belongs_to(Document))]
+pub struct Schema {
+    pub id: i32,
+    pub name: Option<String>,
+    pub column_type: Option<ColumnTypes>,
+    pub required: Option<bool>,
+    pub uniques: Option<bool>,
+    pub document_id: Option<i32>,
+}
+
 impl DocumentWithSchemas {
     pub fn new(document: &Document, schemas: Vec<Schema>) -> DocumentWithSchemas {
         DocumentWithSchemas {
@@ -59,26 +73,3 @@ impl DocumentWithSchemas {
         }
     }
 }
-
-#[derive(
-    Queryable, Identifiable, Serialize, Selectable, Debug, PartialEq, Associations, Deserialize,
-)]
-#[diesel(table_name = schema)]
-#[diesel(belongs_to(Document))]
-pub struct Schema {
-    pub id: i32,
-    pub name: Option<String>,
-    pub column_type: Option<ColumnTypes>,
-    pub required: Option<bool>,
-    pub uniques: Option<bool>,
-    pub document_id: Option<i32>,
-}
-
-/* #[derive(Debug, Selectable, PartialEq, Queryable, Identifiable, Associations)]
-#[diesel(belongs_to(Schema))]
-#[diesel(table_name = document_to_schema)]
-#[diesel(primary_key(document_id, schema_id))]
-pub struct DocumentWithschema {
-    pub document_id: i32,
-    pub schema_id: i32,
-} */
