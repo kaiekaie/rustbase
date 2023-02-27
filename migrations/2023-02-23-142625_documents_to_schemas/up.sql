@@ -2,10 +2,10 @@
 
 
 
-CREATE TABLE documents_to_schemas (
+CREATE TABLE document_to_schema (
 
-  document_id INTEGER REFERENCES documents(id),
-  schema_id  INTEGER REFERENCES schemas(id),
+  document_id INTEGER REFERENCES document(id),
+  schema_id  INTEGER REFERENCES schema(id),
 
   PRIMARY KEY(document_id, schema_id)
 );

@@ -1,6 +1,6 @@
 -- Your SQL goes here
 
-CREATE TABLE documents (
+CREATE TABLE document (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -21,4 +21,4 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_customer_modtime BEFORE UPDATE ON documents FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_customer_modtime BEFORE UPDATE ON document FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

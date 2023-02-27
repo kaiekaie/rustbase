@@ -1,3 +1,3 @@
 -- This file should undo anything in `up.sql`
 
-DROP TABLE documents_to_schemas;
+DROP TABLE document_to_schema;

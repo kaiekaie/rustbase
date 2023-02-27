@@ -58,7 +58,7 @@ mod test {
     }
     #[test]
     fn get_route() {
-        use self::schema::documents::dsl::*;
+        use self::schema::document::dsl::*;
         let docker = clients::Cli::default();
 
         let container = docker.run(Postgres::default());
@@ -70,7 +70,7 @@ mod test {
         let connection = &mut establish_connection();
         run_migrations(connection);
 
-        let rows_inserted = insert_into(documents)
+        let rows_inserted = insert_into(document)
             .values(name.eq("collectionName"))
             .execute(connection);
 
