@@ -17,6 +17,7 @@ diesel::table! {
         createrule -> Nullable<Varchar>,
         updaterule -> Nullable<Varchar>,
         deleterule -> Nullable<Varchar>,
+
     }
 }
 
@@ -27,6 +28,7 @@ diesel::table! {
         created -> Timestamp,
         modified -> Timestamp,
         document_id -> Nullable<Int4>,
+        data -> Nullable<Json>,
     }
 }
 
@@ -47,8 +49,4 @@ diesel::table! {
 diesel::joinable!(record -> document (document_id));
 diesel::joinable!(schema -> document (document_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    document,
-    record,
-    schema,
-);
+diesel::allow_tables_to_appear_in_same_query!(document, record, schema,);

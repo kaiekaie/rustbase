@@ -1,10 +1,11 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
-use diesel::*;
+
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use crate::schema::{document, schema};
+use crate::schema::{document, record, schema};
 
 #[derive(Queryable, Identifiable, Serialize, Selectable, Debug, PartialEq, Deserialize)]
 #[diesel(table_name = document)]
@@ -18,6 +19,27 @@ pub struct Document {
     pub createrule: Option<String>,
     pub updaterule: Option<String>,
     pub deleterule: Option<String>,
+}
+
+#[derive(
+    Queryable,
+    Identifiable,
+    Serialize,
+    Selectable,
+    Debug,
+    PartialEq,
+    Deserialize,
+    QueryableByName,
+    Clone,
+)]
+#[diesel(table_name = record)]
+pub struct Record {
+    pub id: i32,
+    pub name: String,
+    pub created: NaiveDateTime,
+    pub modified: NaiveDateTime,
+    pub document_id: Option<i32>,
+    pub data: Option<Value>,
 }
 
 #[derive(Serialize, Debug, PartialEq, DbEnum, Deserialize)]

@@ -14,10 +14,11 @@ mod test {
     use rustplatform::run_migrations;
     use serde_json::Value;
 
-    use crate::routes::get::static_rocket_route_info_for_get;
     use rustplatform::*;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
+
+    use crate::routes::get::static_rocket_route_info_for_collections;
     const NAME: &str = "postgres";
     const TAG: &str = "11-alpine";
 
@@ -75,7 +76,7 @@ mod test {
             .execute(connection);
 
         assert_eq!(Ok(1), rows_inserted);
-        let ro = rocket::ignite().mount("/api", routes![get]);
+        let ro = rocket::ignite().mount("/api", routes![collections]);
         let client = Client::new(ro).unwrap();
 
         let response = client.get("/api/collections");
