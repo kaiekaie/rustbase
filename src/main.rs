@@ -9,11 +9,16 @@ extern crate serde;
 mod entities;
 mod routes;
 
-use routes::get::static_rocket_route_info_for_get;
-use routes::post::static_rocket_route_info_for_post;
+use routes::{
+    get::{
+        static_rocket_route_info_for_collections, static_rocket_route_info_for_records,
+        static_rocket_route_info_for_recordsByName,
+    },
+    post::static_rocket_route_info_for_post,
+};
 
 pub fn rocket() -> rocket::Rocket {
-    rocket::ignite().mount("/api", routes![get, post])
+    rocket::ignite().mount("/api", routes![collections, records, recordsByName, post])
 }
 
 fn main() {

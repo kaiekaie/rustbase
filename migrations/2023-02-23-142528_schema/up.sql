@@ -1,16 +1,18 @@
 -- Your SQL goes here
 
 
-CREATE TYPE COLUMN_TYPES AS ENUM (
+CREATE  TYPE COLUMN_TYPES AS ENUM (
   'text',
   'number',
-  'mail'
+  'mail',
+  'relation'
 );
 
-CREATE TABLE schemas(
+CREATE TABLE schema(
   id SERIAL PRIMARY KEY,
   name VARCHAR,
   column_type COLUMN_TYPES,
   required BOOLEAN,
-  uniques BOOLEAN
+  uniques BOOLEAN,
+  document_id  INTEGER REFERENCES document(id)
 );

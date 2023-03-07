@@ -14,10 +14,11 @@ mod test {
     use rustplatform::run_migrations;
     use serde_json::Value;
 
-    use crate::routes::get::static_rocket_route_info_for_get;
     use rustplatform::*;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
+
+    use crate::routes::get::static_rocket_route_info_for_collections;
     const NAME: &str = "postgres";
     const TAG: &str = "11-alpine";
 
@@ -58,7 +59,7 @@ mod test {
     }
     #[test]
     fn get_route() {
-        use self::schema::documents::dsl::*;
+        use self::schema::document::dsl::*;
         let docker = clients::Cli::default();
 
         let container = docker.run(Postgres::default());
@@ -70,12 +71,12 @@ mod test {
         let connection = &mut establish_connection();
         run_migrations(connection);
 
-        let rows_inserted = insert_into(documents)
+        let rows_inserted = insert_into(document)
             .values(name.eq("collectionName"))
             .execute(connection);
 
         assert_eq!(Ok(1), rows_inserted);
-        let ro = rocket::ignite().mount("/api", routes![get]);
+        let ro = rocket::ignite().mount("/api", routes![collections]);
         let client = Client::new(ro).unwrap();
 
         let response = client.get("/api/collections");

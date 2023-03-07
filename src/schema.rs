@@ -7,7 +7,7 @@ pub mod sql_types {
 }
 
 diesel::table! {
-    documents (id) {
+    document (id) {
         id -> Int4,
         name -> Varchar,
         created -> Timestamp,
@@ -21,9 +21,13 @@ diesel::table! {
 }
 
 diesel::table! {
-    documents_to_schemas (document_id, schema_id) {
-        document_id -> Int4,
-        schema_id -> Int4,
+    record (id) {
+        id -> Int4,
+        name -> Varchar,
+        created -> Timestamp,
+        modified -> Timestamp,
+        document_id -> Nullable<Int4>,
+        data -> Nullable<Json>,
     }
 }
 
@@ -31,16 +35,21 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ColumnTypes;
 
-    schemas (id) {
+    schema (id) {
         id -> Int4,
         name -> Nullable<Varchar>,
         column_type -> Nullable<ColumnTypes>,
         required -> Nullable<Bool>,
         uniques -> Nullable<Bool>,
+        document_id -> Nullable<Int4>,
     }
 }
 
-diesel::joinable!(documents_to_schemas -> documents (document_id));
-diesel::joinable!(documents_to_schemas -> schemas (schema_id));
+diesel::joinable!(record -> document (document_id));
+diesel::joinable!(schema -> document (document_id));
 
-diesel::allow_tables_to_appear_in_same_query!(documents, documents_to_schemas, schemas,);
+diesel::allow_tables_to_appear_in_same_query!(
+    document,
+    record,
+    schema,
+);
