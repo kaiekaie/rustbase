@@ -4,7 +4,8 @@
 CREATE  TYPE COLUMN_TYPES AS ENUM (
   'text',
   'number',
-  'mail'
+  'mail',
+  'relation'
 );
 
 CREATE TABLE schema(

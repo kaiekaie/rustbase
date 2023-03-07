@@ -48,6 +48,7 @@ pub enum ColumnTypes {
     Text,
     Number,
     Mail,
+    Relation,
 }
 
 #[derive(Serialize, Debug, Deserialize, Queryable)]

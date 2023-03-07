@@ -27,10 +27,5 @@ pub fn records() -> Json<Vec<Record>> {
 
 #[get("/collections/records/<name>")]
 pub fn recordsByName(name: &RawStr) -> Result<Json<Value>, NotFound<String>> {
-    let result = get_records_by_name(name.to_string());
-    if let Some(record) = result {
-        Ok(Json(recordto_json(record)))
-    } else {
-        Err(NotFound(String::from("error")))
-    }
+    get_records_by_name(name.to_string())
 }

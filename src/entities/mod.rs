@@ -1,6 +1,8 @@
 use diesel::prelude::*;
 
 use diesel::result::Error;
+use rocket::response::status::NotFound;
+use rocket_contrib::json::Json;
 use rustplatform::{
     establish_connection,
     models::{Document, DocumentWithSchemas, Record, Schema},
@@ -52,13 +54,17 @@ pub fn get_records() -> Result<Vec<Record>, Error> {
     let resp = record::table.load::<Record>(connection).unwrap();
     Ok(resp)
 }
-pub fn get_records_by_name(record_name: String) -> Option<Record> {
+pub fn get_records_by_name(record_name: String) -> Result<Json<Value>, NotFound<String>> {
     let connection = &mut establish_connection();
     let resp: Result<Record, diesel::result::Error> = record::table
         .filter(record::name.eq(record_name))
         .first(connection);
 
-    resp.ok()
+    if let Some(record) = resp.ok() {
+        Ok(Json(recordto_json(record)))
+    } else {
+        Err(NotFound(String::from("error")))
+    }
 }
 
 pub fn get_document_with_schema_based_on_id(
