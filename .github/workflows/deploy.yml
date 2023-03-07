@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+     branches: ["main"]
 env:
   CARGO_TERM_COLOR: always
 jobs:
@@ -18,7 +19,7 @@ jobs:
       - run: cargo build --release --all-features
       - uses: montudor/action-zip@v1
         with:
-          args: zip -qq -r "${{  github.ref_name }}".zip /target
+          args: zip -qq -r  { github.ref_name }.zip /target
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
