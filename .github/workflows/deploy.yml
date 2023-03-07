@@ -1,17 +1,26 @@
 name: Deploy
 on:
   push:
-    branches: ["main"]
+    tags:
+      - "v*.*.*"
 env:
   CARGO_TERM_COLOR: always
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
       - run: rustup toolchain install nightly-2023-02-15
       - run: rustup default nightly-2023-02-15
       - run: cargo build --release --all-features
+      - uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r "${{  github.ref_name }}".zip /target
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            /"${{  github.ref_name }}".zip
