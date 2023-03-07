@@ -2,8 +2,9 @@ name: Deploy
 on:
   push:
     tags:
-      - "v*.*.*"
-     branches: ["main"]
+      - v*.*.*
+    branches:
+      - main
 env:
   CARGO_TERM_COLOR: always
 jobs:
