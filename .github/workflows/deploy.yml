@@ -19,7 +19,7 @@ jobs:
       - run: cargo build --release --all-features
       - uses: montudor/action-zip@v1
         with:
-          args: zip -qq ${{ github.ref_name }}.zip -d /target
+          args: zip -qq ${{ github.ref_name }}.zip -d ./target
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
