@@ -18,10 +18,14 @@ jobs:
       - run: rustup default nightly-2023-02-15
       - run: cargo build --release --all-features
       - uses: montudor/action-zip@v1
+        env:
+          REF_NAME: ${{ github.ref_name }}
         with:
-          args: zip -qq -r  { github.ref_name }.zip /target
+          args: zip -qq -r  $REF_NAME.zip /target
       - name: Release
         uses: softprops/action-gh-release@v1
+        env:
+          REF_NAME: ${{ github.ref_name }}
         with:
           files: |
-            /"{  github.ref_name }.zip
+            /$REF_NAME.zip
