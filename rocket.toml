@@ -1,0 +1,6 @@
+[default]
+
+port = 8000
+log_level = "normal"
+secret_key = "6xA+YhjMnLSkl2ze/YT4BahvfGhylSC0XHF3pYwgjng="
+limits = { forms = 32768 }

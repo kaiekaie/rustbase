@@ -1,8 +1,8 @@
 use diesel::prelude::*;
 
 use diesel::result::Error;
-use rocket::response::status::NotFound;
-use rocket_contrib::json::Json;
+use rocket::{response::status::NotFound, serde::json::Json};
+
 use rustplatform::{
     establish_connection,
     models::{Document, DocumentWithSchemas, Record, Schema},

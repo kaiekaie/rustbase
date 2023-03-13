@@ -7,18 +7,17 @@ mod test {
     use diesel::insert_into;
     use diesel::prelude::*;
     use rocket::http::Status;
+    use rocket::local::blocking::Client;
+    use rustplatform::models::Document;
 
-    use rocket::local::Client;
-
+    use crate::routes::get::*;
     use rustplatform::establish_connection;
     use rustplatform::run_migrations;
-    use serde_json::Value;
-
     use rustplatform::*;
+    use serde_json::Value;
     use testcontainers::core::WaitFor;
     use testcontainers::*;
 
-    use crate::routes::get::static_rocket_route_info_for_collections;
     const NAME: &str = "postgres";
     const TAG: &str = "11-alpine";
 
@@ -76,18 +75,17 @@ mod test {
             .execute(connection);
 
         assert_eq!(Ok(1), rows_inserted);
-        let ro = rocket::ignite().mount("/api", routes![collections]);
-        let client = Client::new(ro).unwrap();
+        let ro = rocket::build().mount("/api", routes![collections]);
+        let client = Client::tracked(ro).expect("valid rocket");
 
         let response = client.get("/api/collections");
         let mut req = response.dispatch();
 
         assert_eq!(req.status(), Status::Ok);
 
-        let body = req.body_string().unwrap();
-        let v: Value = serde_json::from_str(&body).unwrap();
+        let body = req.into_json::<Vec<Value>>();
 
-        assert_eq!(v[0]["name"], "collectionName")
+        assert_eq!(body.unwrap()[0]["name"], "collectionName")
         /*   assert_eq!(req.body_string(), Some("[{\"id\":1,\"name\":\"asd\",\"created\":\"2023-02-23T11:20:01.135427\",\"modified\":\"2023-02-23T11:20:01.135427\"}]".to_string())); */
     }
     /*
