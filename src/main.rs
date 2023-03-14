@@ -4,7 +4,6 @@ use rocket::Rocket;
 
 #[macro_use]
 extern crate rocket;
-extern crate diesel;
 
 extern crate serde;
 use crate::routes::get::*;

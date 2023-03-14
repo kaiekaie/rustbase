@@ -1,13 +1,8 @@
-use crate::entities::{
-    get_document_with_schema_based_on_id, get_documents_with_schema, get_records,
-    get_records_by_name,
-};
 use rocket::fs::NamedFile;
 use rocket::get;
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
 
-use rustplatform::models::{DocumentWithSchemas, Record};
 use serde_json::Value;
 #[get("/collections")]
 pub fn collections() -> Json<Vec<DocumentWithSchemas>> {
