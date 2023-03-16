@@ -1,21 +1,25 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-use rocket::Rocket;
+use rustplatform::set_up_db;
 
 #[macro_use]
 extern crate rocket;
 
 extern crate serde;
-use crate::routes::get::*;
 mod entities;
-mod routes;
 
+use routes::get::*;
+
+mod routes;
 #[launch]
-pub fn rocket() -> _ {
-    rocket::build().mount(
-        "/api",
-        routes![records, collections, recordsByName, testJsonGet],
-    )
+pub async fn rocket() -> _ {
+    let db = match set_up_db().await {
+        Ok(db) => db,
+        Err(err) => panic!("{}", err),
+    };
+    rocket::build()
+        .manage(db)
+        .mount("/api", routes![get_collections, get_records])
 }
 
 #[cfg(test)]

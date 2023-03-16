@@ -1,36 +1,41 @@
-use rocket::fs::NamedFile;
-use rocket::get;
-use rocket::response::status::NotFound;
-use rocket::serde::json::Json;
+use rocket::{get, response::status::NotFound, serde::json::Json, State};
+use sea_orm::*;
 
+use entities::{prelude::*, *};
+
+use crate::entities::{self};
 use serde_json::Value;
 #[get("/collections")]
-pub fn collections() -> Json<Vec<DocumentWithSchemas>> {
-    let document = get_documents_with_schema().unwrap();
-    return Json(document);
-}
+pub async fn get_collections(
+    db: &State<DatabaseConnection>,
+) -> Result<Json<Vec<Value>>, NotFound<String>> {
+    let db = db as &DatabaseConnection;
 
-#[get("/collections/records")]
-pub fn records() -> Json<Vec<Record>> {
-    let records = get_records().unwrap();
-    let rr = records.clone();
-    for record in rr {
-        let documents = get_document_with_schema_based_on_id(record.id);
-    }
-
-    return Json(records);
-}
-
-#[get("/collections/records/<name>")]
-pub fn recordsByName(name: &str) -> Result<Json<Value>, NotFound<String>> {
-    get_records_by_name(name.to_string())
-}
-
-#[get("/test")]
-pub async fn testJsonGet() -> Result<NamedFile, NotFound<String>> {
-    let file_path = "./example.txt";
-
-    NamedFile::open(&file_path)
+    let response = Document::find()
+        .find_with_related(Schema)
+        .all(db)
         .await
-        .map_err(|e| NotFound(e.to_string()))
+        .expect("nope");
+
+    let formatted = response
+        .into_iter()
+        .map(|(doc, schema)| {
+            let mut value = serde_json::to_value(&doc).unwrap();
+            value["schemas"] = serde_json::to_value(&schema).unwrap();
+            value
+        })
+        .collect::<Vec<Value>>();
+
+    if !formatted.is_empty() {
+        Ok(Json(formatted))
+    } else {
+        Err(NotFound(String::from("error")))
+    }
+}
+
+#[get("/records")]
+pub async fn get_records(db: &State<DatabaseConnection>) -> Json<Vec<record::Model>> {
+    let db = db as &DatabaseConnection;
+    let record = Record::find().all(db).await.expect("nope");
+    return Json(record);
 }
