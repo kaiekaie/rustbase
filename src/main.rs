@@ -9,6 +9,7 @@ extern crate serde;
 mod entities;
 
 use routes::get::*;
+use sea_orm::DbErr;
 
 mod routes;
 #[launch]
@@ -19,7 +20,7 @@ pub async fn rocket() -> _ {
     };
     rocket::build()
         .manage(db)
-        .mount("/api", routes![get_collections, get_records])
+        .mount("/api", routes![get_collections, get_records, get_dynamic])
 }
 
 #[cfg(test)]
