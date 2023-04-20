@@ -31,7 +31,14 @@ async fn rocket() -> _ {
         })
         .mount(
             "/api",
-            routes![test_json_get, get_token, create_collection, get_collection],
+            routes![
+                test_json_get,
+                get_token,
+                create_collection,
+                get_collection,
+                hello,
+                create_user
+            ],
         )
 }
 

@@ -1,3 +1,5 @@
+use std::env;
+
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
 use jsonwebtoken::{DecodingKey, EncodingKey};
@@ -9,27 +11,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
-    company: String,
+    context: String,
     exp: usize,
 }
 
-const JWT_SECRET: &[u8] = b"my_secret_key";
-
 pub fn create_jwt(sub: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let jwt_secret = env::var("JWT_SECRET").unwrap();
     let expiration = (Utc::now() + Duration::minutes(60)).timestamp() as usize;
     let claims = Claims {
         sub: sub.to_owned(),
-        company: format!("asds"),
+        context: format!("asds"),
         exp: expiration,
     };
     let header = Header::new(Algorithm::HS256);
-    encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
+    encode(
+        &header,
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
 }
 
 fn decode_jwt(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    let jwt_secret = env::var("JWT_SECRET").unwrap();
     let token = decode::<Claims>(
         &token,
-        &DecodingKey::from_secret(JWT_SECRET),
+        &DecodingKey::from_secret(jwt_secret.as_bytes()),
         &Validation::default(),
     );
     return token;

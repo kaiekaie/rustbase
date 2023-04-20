@@ -2,11 +2,14 @@ use crate::lib::{data::AppDataPool, jwt_token::*};
 use rocket::get;
 use rocket::State;
 
-#[get("/test")]
+#[get("/get_collections")]
+pub async fn test_json_get(_token: Claims, mongo_db: &State<AppDataPool>) -> String {
+    let names = mongo_db.mongo.list_collection_names(None).await.unwrap();
 
-pub async fn test_json_get(token: Claims, mongo_db: &State<AppDataPool>) -> String {
-    for coll_name in mongo_db.mongo.list_collection_names(None).await.unwrap() {
-        println!("collection: {:?}", coll_name);
-    }
-    return format!("{:?}", token.sub);
+    return format!("{:?}", names);
+}
+
+#[get("/hello")]
+pub async fn hello() -> String {
+    return format!("hello world");
 }

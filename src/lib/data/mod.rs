@@ -3,7 +3,9 @@ use std::iter::Map;
 use crate::models::collection::Documents;
 
 use mongodb::{
-    bson::{doc, oid::ObjectId},
+    bson::{doc, oid::ObjectId, Document},
+    error::Error,
+    options::{CollectionOptions, CreateCollectionOptions, ValidationAction, ValidationLevel},
     Collection, Database,
 };
 use rocket::serde::json::Json;
@@ -48,4 +50,21 @@ pub async fn validate_json(mut json_value: Json<Value>, database: Database, coll
 
 fn check_if_type(checkType: &Value) {
     //UcheckType.is_string()
+}
+
+pub async fn create_collection(
+    database: Database,
+    name: String,
+    doc: Document,
+) -> Result<(), Error> {
+
+    let option = CreateCollectionOptions::builder()
+        .validator(doc)
+        .validation_action(ValidationAction::Error)
+        .validation_level(ValidationLevel::Moderate)
+        .build();
+
+    // Create collection options with validation
+
+    database.create_collection(name, option).await
 }

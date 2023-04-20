@@ -41,3 +41,39 @@ pub struct Documents {
     pub deleterule: Option<String>,
     pub schemas: Vec<Schema>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Now(pub DateTime<Utc>);
+
+impl Default for Now {
+    fn default() -> Self {
+        Now(Utc::now())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Users {
+    #[serde(rename = "_id", skip_deserializing)]
+    pub id: ObjectId,
+    pub username: String,
+    pub name: Option<String>,
+    #[serde(skip_deserializing)]
+    pub created: Now,
+    #[serde(skip_deserializing)]
+    pub modified: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Secrets {
+    #[serde(rename = "_id", skip_deserializing)]
+    pub id: ObjectId,
+    pub name: Option<String>,
+    #[serde(skip_deserializing)]
+    pub created: Now,
+    #[serde(skip_deserializing)]
+    pub modified: Option<DateTime<Utc>>,
+    pub hash: String,
+    pub user_id: ObjectId,
+}
