@@ -5,3 +5,4 @@
 
 App platform based on Rust
 
+like firebase but written in rust
