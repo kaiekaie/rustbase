@@ -4,7 +4,7 @@
 
 # Rust-Based Platform with MongoDB Database
 
-This is a platform built using the Rust programming language and MongoDB database. It is designed to provide similar functionalities to Firebase, including user authentication, real-time database, and cloud messaging.
+This is a platform built using the Rust programming language and MongoDB database. It is designed to provide similar functionalities to Firebase, including user authentication and real-time database.
 
 ## Features
 
@@ -12,14 +12,12 @@ The platform includes the following features:
 
 - User authentication: users can sign up, log in, and reset their passwords.
 - Real-time database: data is stored and synchronized in real-time between clients and the server.
-- Cloud messaging: push notifications can be sent to clients using the platform.
 
 ## Technology Stack
 
 - Rust: the main programming language used to develop the platform.
 - MongoDB: the database used to store data.
 - Rocket: a web framework for Rust used to handle HTTP requests.
-- Tera: a template engine used to generate HTML pages.
 - WebSocket: a protocol used to enable real-time communication between clients and the server.
 
 ## Installation
