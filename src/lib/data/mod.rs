@@ -15,7 +15,7 @@ use serde_json::Value;
 pub struct AppDataPool {
     pub mongo: Database,
 }
-
+/*
 pub async fn validate_json(mut json_value: Json<Value>, database: Database, collection_id: &str) {
     let collection: mongodb::Collection<Documents> = database.collection("documents");
     let result_id = ObjectId::parse_str(collection_id);
@@ -46,7 +46,7 @@ pub async fn validate_json(mut json_value: Json<Value>, database: Database, coll
             }
         };
     }
-}
+} */
 
 fn check_if_type(checkType: &Value) {
     //UcheckType.is_string()
@@ -57,7 +57,6 @@ pub async fn create_collection(
     name: String,
     doc: Document,
 ) -> Result<(), Error> {
-
     let option = CreateCollectionOptions::builder()
         .validator(doc)
         .validation_action(ValidationAction::Error)

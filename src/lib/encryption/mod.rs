@@ -4,10 +4,6 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use base64::engine::general_purpose;
 use base64::Engine;
 
-pub struct SaltPasswordHasher {
-    pub hash: String,
-}
-
 pub fn create_password_hash(password: &[u8]) -> String {
     let argon2 = Argon2::default();
     let salt = SaltString::generate(&mut OsRng);

@@ -12,7 +12,7 @@ mod test {
     use testcontainers::*;
 
     use crate::lib::data::create_collection;
-    use crate::lib::encryption::{create_password_hash, verify_password, SaltPasswordHasher};
+    use crate::lib::encryption::{create_password_hash, verify_password};
     use crate::lib::jwt_token::create_jwt;
     use crate::models::collection::{Now, Users};
 
@@ -98,8 +98,14 @@ mod test {
         let collection: mongodb::Collection<_> = db.collection("testcollection");
         collection.insert_one(dockument, None).await.unwrap();
         let client = Client::tracked(rocket().await).await.unwrap();
-
-        let token = create_jwt("tester").unwrap();
+        let user = Users {
+            id: ObjectId::new(),
+            username: format!("tester"),
+            name: None,
+            modified: None,
+            created: Now(Utc::now()),
+        };
+        let token = create_jwt("tester", user).unwrap();
 
         let request = client.get("/api/get_collections");
         let request = request.header(Header::new("Authorization", format!("Bearer {}", token)));
@@ -142,7 +148,6 @@ mod test {
         let db = client.unwrap().database("rustplatform");
 
         let validation_rule: Document = doc! {
-
                 "$jsonSchema": {
                     "bsonType": "object",
                     "required": ["name", "age"],

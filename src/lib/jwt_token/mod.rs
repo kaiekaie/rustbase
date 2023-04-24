@@ -4,23 +4,26 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 
+use mongodb::bson::Document;
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
 use serde::{Deserialize, Serialize};
 
+use crate::models::collection::Users;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
-    context: String,
+    pub context: Users,
     exp: usize,
 }
 
-pub fn create_jwt(sub: &str) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn create_jwt(sub: &str, context: Users) -> Result<String, jsonwebtoken::errors::Error> {
     let jwt_secret = env::var("JWT_SECRET").unwrap();
     let expiration = (Utc::now() + Duration::minutes(60)).timestamp() as usize;
     let claims = Claims {
         sub: sub.to_owned(),
-        context: format!("asds"),
+        context: context,
         exp: expiration,
     };
     let header = Header::new(Algorithm::HS256);

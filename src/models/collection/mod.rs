@@ -39,7 +39,7 @@ pub struct Documents {
     pub createrule: Option<String>,
     pub updaterule: Option<String>,
     pub deleterule: Option<String>,
-    pub schemas: Vec<Schema>,
+    pub schemas: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ impl Default for Now {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Users {
-    #[serde(rename = "_id", skip_deserializing)]
+    #[serde(rename = "_id")]
     pub id: ObjectId,
     pub username: String,
     pub name: Option<String>,
@@ -69,7 +69,6 @@ pub struct Users {
 pub struct Secrets {
     #[serde(rename = "_id", skip_deserializing)]
     pub id: ObjectId,
-    pub name: Option<String>,
     #[serde(skip_deserializing)]
     pub created: Now,
     #[serde(skip_deserializing)]
