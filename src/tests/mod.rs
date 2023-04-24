@@ -22,7 +22,11 @@ mod test {
 
     #[rocket::async_test]
     async fn get_route() {
-        let client = Client::tracked(rocket().await).await.unwrap();
+        let rocket = rocket().await;
+        let client = Client::tracked(rocket)
+            .await
+            .expect("valid rocket instance");
+
         let req = client.get("/api/hello");
         let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
         assert_eq!(r1.status(), r2.status());
