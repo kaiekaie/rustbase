@@ -17,12 +17,11 @@ mod test {
     use crate::models::collection::{Documents, Now, Users};
 
     use super::super::rocket;
+    use rocket::local::asynchronous::Client;
     use std::env;
 
     #[rocket::async_test]
     async fn get_route() {
-        use rocket::local::asynchronous::Client;
-
         let client = Client::tracked(rocket().await).await.unwrap();
         let req = client.get("/api/hello");
         let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
@@ -66,8 +65,6 @@ mod test {
 
     #[rocket::async_test]
     async fn failing_test_jwt() {
-        use rocket::local::asynchronous::Client;
-
         let client = Client::tracked(rocket().await).await.unwrap();
         let req = client.get("/api/get_collections");
         let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
@@ -77,7 +74,6 @@ mod test {
 
     #[rocket::async_test]
     async fn nice_test_jwt() {
-        use rocket::local::asynchronous::Client;
         let docker = clients::Cli::default();
         let container = docker.run(Mongo::default());
 
