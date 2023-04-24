@@ -124,7 +124,7 @@ pub async fn create_user(
 pub async fn post_create_collection(
     documents: Json<Documents>,
     mongo_db: &State<AppDataPool>,
-) -> Result<(), ApiResponse> {
+) -> Result<ApiResponse, ApiResponse> {
     create_collection(mongo_db.mongo.clone(), documents.0)
         .await
         .map_err(|e| ApiResponse {
@@ -132,6 +132,12 @@ pub async fn post_create_collection(
                 message: format!("error: cant find user {:?}", e),
             }),
             status: Status::BadRequest,
+        })
+        .map(|_| ApiResponse {
+            json: Json(JsonMessage {
+                message: format!("collection created"),
+            }),
+            status: Status::Ok,
         })
 }
 

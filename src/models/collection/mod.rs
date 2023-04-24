@@ -32,7 +32,9 @@ pub struct Documents {
     #[serde(rename = "_id", skip_deserializing)]
     pub id: ObjectId,
     pub name: String,
+    #[serde(skip_deserializing)]
     pub created: DateTime<Utc>,
+    #[serde(skip_deserializing)]
     pub modified: Option<DateTime<Utc>>,
     pub listrule: Option<String>,
     pub viewrule: Option<String>,
