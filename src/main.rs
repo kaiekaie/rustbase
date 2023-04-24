@@ -1,22 +1,44 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-
-use rocket::Rocket;
-
 #[macro_use]
 extern crate rocket;
-extern crate diesel;
 
 extern crate serde;
+use crate::lib::counter::*;
 use crate::routes::get::*;
-mod entities;
+use crate::routes::post::*;
+
+use lib::data::AppDataPool;
+use mongodb::Client;
+use std::sync::atomic::AtomicUsize;
+#[warn(special_module_name)]
+mod lib;
+mod models;
 mod routes;
+use std::env;
 
 #[launch]
-pub fn rocket() -> _ {
-    rocket::build().mount(
-        "/api",
-        routes![records, collections, recordsByName, testJsonGet],
-    )
+async fn rocket() -> _ {
+    dotenvy::dotenv().expect("missing .envfile");
+    let database = env::var("DATABASE_URL").expect("missing environment variable");
+    let client = Client::with_uri_str(database).await;
+
+    let db = client.unwrap().database("rustplatform");
+    rocket::build()
+        .manage(AppDataPool { mongo: db })
+        .attach(Counter {
+            get: AtomicUsize::new(0),
+            post: AtomicUsize::new(0),
+        })
+        .mount(
+            "/api",
+            routes![
+                test_json_get,
+                get_token,
+                post_create_collection,
+                get_collection,
+                hello,
+                create_user
+            ],
+        )
 }
 
 #[cfg(test)]

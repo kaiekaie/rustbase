@@ -1,114 +1,179 @@
 #[cfg(test)]
 mod test {
 
-    use std::collections::HashMap;
-    use std::env;
+    use chrono::Utc;
+    use mongodb::bson::{doc, Document};
 
-    use diesel::insert_into;
-    use diesel::prelude::*;
-    use rocket::http::Status;
-    use rocket::local::blocking::Client;
-    use rustplatform::models::Document;
+    use mongodb::bson::oid::ObjectId;
+    use rocket::http::{Header, Status};
 
-    use crate::routes::get::*;
-    use rustplatform::establish_connection;
-    use rustplatform::run_migrations;
-    use rustplatform::*;
-    use serde_json::Value;
-    use testcontainers::core::WaitFor;
+    use serde_json::json;
+    use testcontainers::images::mongo::Mongo;
     use testcontainers::*;
 
-    const NAME: &str = "postgres";
-    const TAG: &str = "11-alpine";
+    use crate::lib::data::create_collection;
+    use crate::lib::encryption::{create_password_hash, verify_password};
+    use crate::lib::jwt_token::create_jwt;
+    use crate::models::collection::{Documents, Now, Users};
 
-    pub struct Postgres {
-        env_vars: HashMap<String, String>,
+    use super::super::rocket;
+    use rocket::local::asynchronous::Client;
+    use std::env;
+
+    #[rocket::async_test]
+    async fn get_route() {
+        let client = Client::tracked(rocket().await)
+            .await
+            .expect("valid rocket instance");
+
+        let req = client.get("/api/hello");
+        let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
+        assert_eq!(r1.status(), r2.status());
+        assert_eq!(r1.status(), Status::Ok);
+        assert_eq!(r1.into_string().await.unwrap(), "hello world");
     }
 
-    impl Default for Postgres {
-        fn default() -> Self {
-            let mut env_vars = HashMap::new();
-            env_vars.insert("POSTGRES_DB".to_owned(), "postgres".to_owned());
-            env_vars.insert("POSTGRES_PASSWORD".to_owned(), "root".to_owned());
-
-            Self { env_vars }
-        }
-    }
-
-    impl Image for Postgres {
-        type Args = ();
-
-        fn name(&self) -> String {
-            NAME.to_owned()
-        }
-
-        fn tag(&self) -> String {
-            TAG.to_owned()
-        }
-
-        fn ready_conditions(&self) -> Vec<WaitFor> {
-            vec![WaitFor::message_on_stderr(
-                "database system is ready to accept connections",
-            )]
-        }
-
-        fn env_vars(&self) -> Box<dyn Iterator<Item = (&String, &String)> + '_> {
-            Box::new(self.env_vars.iter())
-        }
-    }
-    #[test]
-    fn get_route() {
-        use self::schema::document::dsl::*;
+    #[rocket::async_test]
+    async fn test_db() {
         let docker = clients::Cli::default();
+        let container = docker.run(Mongo::default());
 
-        let container = docker.run(Postgres::default());
-        let mysql_port = container.get_host_port_ipv4(5432);
-        let mysql_url = format!("postgres://postgres:root@localhost:{}/postgres", mysql_port);
-        container.start();
-        env::set_var("DATABASE_URL", mysql_url);
+        let mysql_port = container.get_host_port_ipv4(27017);
+        println!("{}", mysql_port);
+        let mysql_url = format!("mongodb://localhost:{}", mysql_port);
 
-        let connection = &mut establish_connection();
-        run_migrations(connection);
+        let client = mongodb::Client::with_uri_str(mysql_url).await;
 
-        let rows_inserted = insert_into(document)
-            .values(name.eq("collectionName"))
-            .execute(connection);
+        let db = client.unwrap().database("rustplatform");
+        let dockument = doc! {
+          "tester" : "asdasd"
+        };
 
-        assert_eq!(Ok(1), rows_inserted);
-        let ro = rocket::build().mount("/api", routes![collections]);
-        let client = Client::tracked(ro).expect("valid rocket");
+        let collection: mongodb::Collection<_> = db.collection("testcollection");
+        let instesr = collection.insert_one(dockument, None).await.unwrap();
 
-        let response = client.get("/api/collections");
-        let mut req = response.dispatch();
+        assert_eq!(instesr.inserted_id.to_string().len(), 36);
 
-        assert_eq!(req.status(), Status::Ok);
+        let output = collection
+            .find_one(Some(doc! {"_id": instesr.inserted_id}), None)
+            .await
+            .expect("Query result not found");
 
-        let body = req.into_json::<Vec<Value>>();
+        println!("{:?}", output);
+        let valye = output.unwrap();
+        let object = json!(&valye);
 
-        assert_eq!(body.unwrap()[0]["name"], "collectionName")
-        /*   assert_eq!(req.body_string(), Some("[{\"id\":1,\"name\":\"asd\",\"created\":\"2023-02-23T11:20:01.135427\",\"modified\":\"2023-02-23T11:20:01.135427\"}]".to_string())); */
+        assert_eq!(object["tester"], "asdasd");
     }
-    /*
-    #[test]
-    fn post_route() {
-        let john = json!({
-            "name": "asdasd",
-            "age": 1 ,
-            "phones": [
-                format!("+44 {}", "2323")
-            ]
-        });
 
-        let client = Client::tracked(init()).expect("valid rocket instance");
-        let response = client
-            .post(uri!("/api/testing"))
-            .header(ContentType::JSON)
-            .body(john.to_string())
-            .dispatch();
-        assert_eq!(response.status(), Status::Ok);
-        assert_eq!(
-            response.into_string().unwrap(),
-            "Posting new item to testing , {\"age\":1,\"name\":\"asdasd\",\"phones\":[\"+44 2323\"]}"
-        );
-    } */
+    #[rocket::async_test]
+    async fn failing_test_jwt() {
+        let client = Client::tracked(rocket().await)
+            .await
+            .expect("valid rocket instance");
+        let req = client.get("/api/get_collections");
+        let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
+        assert_eq!(r1.status(), r2.status());
+        assert_eq!(r1.status(), Status::Unauthorized);
+    }
+
+    #[rocket::async_test]
+    async fn nice_test_jwt() {
+        let docker = clients::Cli::default();
+        let container = docker.run(Mongo::default());
+
+        let mysql_port = container.get_host_port_ipv4(27017);
+
+        let mongourl = format!("mongodb://localhost:{}", mysql_port);
+
+        env::set_var("DATABASE_URL", &mongourl);
+        env::set_var("JWT_SECRET", "mycoolsecret");
+
+        let client = mongodb::Client::with_uri_str(&mongourl).await;
+
+        let db = client.unwrap().database("rustplatform");
+        let dockument = doc! {
+          "tester" : "asdasd"
+        };
+
+        let collection: mongodb::Collection<_> = db.collection("testcollection");
+        collection.insert_one(dockument, None).await.unwrap();
+        let client = Client::tracked(rocket().await)
+            .await
+            .expect("valid rocket instance");
+        let user = Users {
+            id: ObjectId::new(),
+            username: format!("tester"),
+            name: None,
+            modified: None,
+            created: Now(Utc::now()),
+        };
+        let token = create_jwt("tester", user).unwrap();
+
+        let request = client.get("/api/get_collections");
+        let request = request.header(Header::new("Authorization", format!("Bearer {}", token)));
+
+        let (r1, r2) = rocket::tokio::join!(request.clone().dispatch(), request.dispatch());
+        assert_eq!(r1.status(), r2.status());
+        assert_eq!(r1.status(), Status::Ok);
+        let value = json!(r1.into_string().await.unwrap());
+
+        assert_eq!(value, "[\"testcollection\"]");
+    }
+
+    #[test]
+    fn verify_the_password() {
+        let password = b"asdas";
+        let hash = create_password_hash(password);
+
+        assert!(verify_password(password, hash));
+    }
+
+    #[test]
+    fn wrong_password() {
+        let password = b"asdas";
+        let hash = create_password_hash(password);
+        let pass_wrong = b"tester";
+        assert!(!verify_password(pass_wrong, hash));
+    }
+
+    #[rocket::async_test]
+    async fn create_collection_fn() {
+        let docker = clients::Cli::default();
+        let container = docker.run(Mongo::default());
+
+        let mysql_port = container.get_host_port_ipv4(27017);
+
+        let mysql_url = format!("mongodb://localhost:{}", mysql_port);
+
+        let client = mongodb::Client::with_uri_str(mysql_url).await;
+
+        let db = client.unwrap().database("rustplatform");
+
+        let validation_rule: Document = doc! {
+                "$jsonSchema": {
+                    "bsonType": "object",
+                    "required": ["name", "age"],
+                    "properties": {
+                        "name": { "bsonType": "string" },
+                        "age": { "bsonType": "int" }
+                    }
+                }
+
+        };
+        let document = Documents {
+            id: ObjectId::new(),
+            name: format!("tester"),
+            created: Utc::now(),
+            listrule: None,
+            createrule: None,
+            modified: None,
+            viewrule: None,
+            updaterule: None,
+            deleterule: None,
+            schemas: validation_rule,
+        };
+        let res = create_collection(db, document).await;
+        assert!(res.is_ok())
+    }
 }

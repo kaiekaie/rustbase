@@ -4,16 +4,19 @@ services:
     container_name: rustplatform
     image: rustplatform
     depends_on:
-      - sql
+      - mongo
     platform: linux/amd64
     build: .
-  sql:
-    container_name: sql
-    image: postgres:latest
+  mongo:
+    container_name: mongo
+    image: mongo:latest
+
     ports:
-      - 5433:5432
+      - 27017:27017
     environment:
-      - POSTGRES_PASSWORD=root
-      - POSTGRES_DB=rustplatform
+      MONGO_INITDB_ROOT_USERNAME: users
+      MONGO_INITDB_ROOT_PASSWORD: 12ed2342
+      MONGO_INITDB_DATABASE: rustplatform
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - ./init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./data:/data/db
