@@ -52,18 +52,14 @@ fn check_if_type(checkType: &Value) {
     //UcheckType.is_string()
 }
 
-pub async fn create_collection(
-    database: Database,
-    name: String,
-    doc: Document,
-) -> Result<(), Error> {
+pub async fn create_collection(database: Database, document: Documents) -> Result<(), Error> {
     let option = CreateCollectionOptions::builder()
-        .validator(doc)
+        .validator(document.schemas)
         .validation_action(ValidationAction::Error)
         .validation_level(ValidationLevel::Moderate)
         .build();
 
     // Create collection options with validation
 
-    database.create_collection(name, option).await
+    database.create_collection(document.name, option).await
 }

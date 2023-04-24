@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use mongodb::bson::doc;
 use mongodb::bson::oid::ObjectId;
+use mongodb::bson::{doc, Document};
 
 use serde::{Deserialize, Serialize};
 
@@ -33,13 +33,13 @@ pub struct Documents {
     pub id: ObjectId,
     pub name: String,
     pub created: DateTime<Utc>,
-    pub modified: DateTime<Utc>,
+    pub modified: Option<DateTime<Utc>>,
     pub listrule: Option<String>,
     pub viewrule: Option<String>,
     pub createrule: Option<String>,
     pub updaterule: Option<String>,
     pub deleterule: Option<String>,
-    pub schemas: String,
+    pub schemas: Document,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

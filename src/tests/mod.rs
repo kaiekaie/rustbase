@@ -14,7 +14,7 @@ mod test {
     use crate::lib::data::create_collection;
     use crate::lib::encryption::{create_password_hash, verify_password};
     use crate::lib::jwt_token::create_jwt;
-    use crate::models::collection::{Now, Users};
+    use crate::models::collection::{Documents, Now, Users};
 
     use super::super::rocket;
     use std::env;
@@ -121,17 +121,17 @@ mod test {
     #[test]
     fn verify_the_password() {
         let password = b"asdas";
-        let salt = create_password_hash(password);
+        let hash = create_password_hash(password);
 
-        assert!(verify_password(password, salt));
+        assert!(verify_password(password, hash));
     }
 
     #[test]
     fn wrong_password() {
         let password = b"asdas";
-        let salt = create_password_hash(password);
+        let hash = create_password_hash(password);
         let pass_wrong = b"tester";
-        assert!(!verify_password(pass_wrong, salt));
+        assert!(!verify_password(pass_wrong, hash));
     }
 
     #[rocket::async_test]
@@ -158,7 +158,19 @@ mod test {
                 }
 
         };
-        let res = create_collection(db, format!("testers"), validation_rule).await;
+        let document = Documents {
+            id: ObjectId::new(),
+            name: format!("tester"),
+            created: Utc::now(),
+            listrule: None,
+            createrule: None,
+            modified: None,
+            viewrule: None,
+            updaterule: None,
+            deleterule: None,
+            schemas: validation_rule,
+        };
+        let res = create_collection(db, document).await;
         assert!(res.is_ok())
     }
 }

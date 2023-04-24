@@ -8,7 +8,7 @@ use rocket::serde::{json::*, Deserialize};
 use rocket::State;
 use serde_json::json;
 
-use crate::lib::data::AppDataPool;
+use crate::lib::data::{create_collection, AppDataPool};
 use crate::lib::encryption::{create_password_hash, verify_password};
 use crate::lib::jwt_token::create_jwt;
 use crate::models::api_response::{ApiResponse, JsonMessage};
@@ -120,16 +120,19 @@ pub async fn create_user(
     }
 }
 
-#[post("/collection", data = "<documents>")]
-pub async fn create_collection(
+#[post("/collection/create", data = "<documents>")]
+pub async fn post_create_collection(
     documents: Json<Documents>,
     mongo_db: &State<AppDataPool>,
-) -> String {
-    let collection: mongodb::Collection<Documents> = mongo_db.mongo.collection("documents");
-    match collection.insert_one(documents.into_inner(), None).await {
-        Ok(result) => format!("Inserted document with ID: {}", result.inserted_id),
-        Err(e) => format!("Error inserting document: {}", e),
-    }
+) -> Result<(), ApiResponse> {
+    create_collection(mongo_db.mongo.clone(), documents.0)
+        .await
+        .map_err(|e| ApiResponse {
+            json: Json(JsonMessage {
+                message: format!("error: cant find user {:?}", e),
+            }),
+            status: Status::BadRequest,
+        })
 }
 
 #[post("/collection/<collection_id>", data = "<documents>")]

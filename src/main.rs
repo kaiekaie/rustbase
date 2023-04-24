@@ -34,7 +34,7 @@ async fn rocket() -> _ {
             routes![
                 test_json_get,
                 get_token,
-                create_collection,
+                post_create_collection,
                 get_collection,
                 hello,
                 create_user
