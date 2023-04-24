@@ -22,8 +22,7 @@ mod test {
 
     #[rocket::async_test]
     async fn get_route() {
-        let rocket = rocket().await;
-        let client = Client::tracked(rocket)
+        let client = Client::tracked(rocket().await)
             .await
             .expect("valid rocket instance");
 
@@ -69,7 +68,9 @@ mod test {
 
     #[rocket::async_test]
     async fn failing_test_jwt() {
-        let client = Client::tracked(rocket().await).await.unwrap();
+        let client = Client::tracked(rocket().await)
+            .await
+            .expect("valid rocket instance");
         let req = client.get("/api/get_collections");
         let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
         assert_eq!(r1.status(), r2.status());
@@ -97,7 +98,9 @@ mod test {
 
         let collection: mongodb::Collection<_> = db.collection("testcollection");
         collection.insert_one(dockument, None).await.unwrap();
-        let client = Client::tracked(rocket().await).await.unwrap();
+        let client = Client::tracked(rocket().await)
+            .await
+            .expect("valid rocket instance");
         let user = Users {
             id: ObjectId::new(),
             username: format!("tester"),
