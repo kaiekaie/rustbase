@@ -1,65 +1,154 @@
-use std::iter::Map;
-
-use crate::models::collection::Documents;
+use crate::models::collection::{self, Documents};
 
 use mongodb::{
-    bson::{doc, oid::ObjectId, Document},
+    bson::{doc, from_bson, oid::ObjectId, Bson, Document},
     error::Error,
-    options::{CollectionOptions, CreateCollectionOptions, ValidationAction, ValidationLevel},
+    options::{CreateCollectionOptions, ValidationAction, ValidationLevel},
+    results::{DeleteResult, InsertOneResult},
     Collection, Database,
 };
-use rocket::serde::json::Json;
-use serde_json::Value;
+use rocket::{futures::StreamExt, Data};
+
+use super::jwt_token::JwtUser;
 
 #[derive(Debug, Clone)]
 pub struct AppDataPool {
     pub mongo: Database,
 }
-/*
-pub async fn validate_json(mut json_value: Json<Value>, database: Database, collection_id: &str) {
-    let collection: mongodb::Collection<Documents> = database.collection("documents");
-    let result_id = ObjectId::parse_str(collection_id);
 
-    if let Ok(id) = result_id {
-        let query_result = collection
-            .find_one(Some(doc! {"_id": id}), None)
-            .await
-            .expect("Query result not found");
-
-        if let Some(qs) = query_result {
-            if let Some(json_object) = json_value.as_object_mut() {
-                let key_names: Vec<String> = qs.schemas.into_iter().map(|s| s.name).collect();
-                let mut keys_to_remove = Vec::new();
-                for key in json_object.keys() {
-                    if !key_names.contains(&key) {
-                        keys_to_remove.push(key.clone());
-                    }
-                }
-                for key in keys_to_remove {
-                    json_object.remove(&key);
-                }
-                println!("{:?}", json_object.keys().len());
-                if json_object.keys().len() > 0 {
-                    let poop: Collection<Value> = database.collection(&qs.name);
-                    poop.insert_one(json_value.0, None).await.expect("whops");
-                }
-            }
-        };
-    }
-} */
-
-fn check_if_type(checkType: &Value) {
-    //UcheckType.is_string()
-}
-
-pub async fn create_collection(database: Database, document: Documents) -> Result<(), Error> {
+pub async fn create_collection(
+    database: Database,
+    document: Documents,
+) -> Result<Option<ObjectId>, Error> {
+    let borrowed = &document.schemas;
     let option = CreateCollectionOptions::builder()
-        .validator(document.schemas)
+        .validator(borrowed.to_owned())
         .validation_action(ValidationAction::Error)
         .validation_level(ValidationLevel::Moderate)
         .build();
+    let documents_collection: Collection<Documents> = database.collection("documents");
+    let name = &document.name;
+    match database.create_collection(name, option).await {
+        Ok(_) => documents_collection
+            .insert_one(document, None)
+            .await
+            .map(|op| op.inserted_id.as_object_id()),
+        Err(e) => Err(e.into()),
+    }
+}
 
-    // Create collection options with validation
+pub async fn delete_collection(database: &Database, name: String) -> Result<(), Error> {
+    let collection: Collection<Document> = database.collection(name.as_str());
 
-    database.create_collection(document.name, option).await
+    let documents_collection: Collection<Documents> = database.collection("documents");
+
+    match documents_collection
+        .delete_one(doc! {"name": name}, None)
+        .await
+    {
+        Ok(_) => collection.drop(None).await,
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub async fn add_record(
+    database: &Database,
+    name: String,
+    document: Document,
+) -> Result<Option<Document>, Error> {
+    let documents_collection: Collection<Documents> = database.collection("documents");
+    let documents = documents_collection
+        .find_one(Some(doc! {"name":&name}), None)
+        .await?;
+    let record_collection = CRUD::new(database, name);
+    if let Some(document_from) = documents {
+        if (!document_from.createrule.is_some()) {
+            match record_collection.create(document).await {
+                Ok(res) => {
+                    record_collection
+                        .read(Some(doc! { "_id" : res.inserted_id}))
+                        .await
+                }
+                Err(e) => Err(e.into()),
+            }
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+pub async fn aggregate_on_collections<T>(
+    database: Collection<T>,
+    doc: Vec<Document>,
+) -> Result<Option<mongodb::bson::Document>, Error> {
+    let mut cursor = database.aggregate(doc, None).await?;
+    let mut document = None;
+    while let Some(result) = cursor.next().await {
+        match result {
+            Ok(document_ok) => {
+                if !document_ok.is_empty() {
+                    document = Some(document_ok);
+                }
+            }
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
+    }
+
+    Ok(document)
+}
+
+pub struct CRUD<'a> {
+    db: &'a Database,
+    name: String,
+
+    collection: Collection<Document>,
+}
+
+impl CRUD<'_> {
+    fn new(db: &Database, name: String) -> CRUD {
+        let collection: Collection<Document> = db.collection(name.as_str());
+        CRUD {
+            db,
+            name,
+
+            collection,
+        }
+    }
+
+    pub async fn create(&self, document: Document) -> Result<InsertOneResult, Error> {
+        self.collection.insert_one(document, None).await
+    }
+
+    pub async fn read(
+        &self,
+        filter: Option<Document>,
+    ) -> Result<Option<Document>, mongodb::error::Error> {
+        let mut cursor = self.collection.find(filter, None).await?;
+        let mut document = None;
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(document_ok) => {
+                    if !document_ok.is_empty() {
+                        document = Some(document_ok);
+                    }
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                }
+            }
+        }
+        Ok(document)
+    }
+
+    fn update(&self) {
+        println!("Updating...");
+    }
+
+    pub async fn delete(&self, id: ObjectId) -> Result<DeleteResult, mongodb::error::Error> {
+        self.collection.delete_one(doc! {"_id": id}, None).await
+    }
 }

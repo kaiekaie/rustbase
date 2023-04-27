@@ -15,7 +15,6 @@ jobs:
   build_and_test:
     name: Rust project - latest
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         toolchain:

@@ -13,8 +13,10 @@ mod test {
 
     use crate::lib::data::create_collection;
     use crate::lib::encryption::{create_password_hash, verify_password};
-    use crate::lib::jwt_token::create_jwt;
-    use crate::models::collection::{Documents, Now, Users};
+    use crate::lib::filter::{scan, FilterParser, Rule};
+
+    use crate::lib::jwt_token::{create_jwt, JwtUser};
+    use crate::models::collection::{Documents, Now, Role, Users};
 
     use super::super::rocket;
     use rocket::local::asynchronous::Client;
@@ -105,10 +107,15 @@ mod test {
             id: ObjectId::new(),
             username: format!("tester"),
             name: None,
+            role: Role::Admin,
             modified: None,
             created: Now(Utc::now()),
         };
-        let token = create_jwt("tester", user).unwrap();
+        let jwt_user = JwtUser {
+            id: user.id,
+            role: user.role,
+        };
+        let token = create_jwt("tester", jwt_user).unwrap();
 
         let request = client.get("/api/get_collections");
         let request = request.header(Header::new("Authorization", format!("Bearer {}", token)));
@@ -164,7 +171,7 @@ mod test {
         let document = Documents {
             id: ObjectId::new(),
             name: format!("tester"),
-            created: Utc::now(),
+            created: Now(Utc::now()),
             listrule: None,
             createrule: None,
             modified: None,
@@ -175,5 +182,25 @@ mod test {
         };
         let res = create_collection(db, document).await;
         assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_filter() {
+        let input = "@request.auth.id != '' && poop = 'as'";
+        let scanner = scan(input).unwrap();
+        for pair in scanner {
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::statement => {
+                        println!("{:?}", inner_pair.as_str())
+                    }
+                    Rule::expression => {
+                        println!("{:?}", inner_pair.tokens())
+                    }
+
+                    _ => (),
+                }
+            }
+        }
     }
 }

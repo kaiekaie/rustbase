@@ -1,24 +1,31 @@
 use chrono::Utc;
-use mongodb::bson::doc;
+use mongodb::bson::{doc, from_bson, Bson};
 
 use mongodb::bson::oid::ObjectId;
+
 use rocket::http::Status;
-use rocket::response::status::{self, BadRequest};
+
 use rocket::serde::{json::*, Deserialize};
 use rocket::State;
 use serde_json::json;
 
-use crate::lib::data::{create_collection, AppDataPool};
+use crate::lib::data::{aggregate_on_collections, create_collection, AppDataPool};
 use crate::lib::encryption::{create_password_hash, verify_password};
-use crate::lib::jwt_token::create_jwt;
+use crate::lib::jwt_token::{create_jwt, JwtUser};
 use crate::models::api_response::{ApiResponse, JsonMessage};
-use crate::models::collection::{Documents, Now, Secrets, Users};
+use crate::models::collection::{Documents, Now, Role, Secrets, Users};
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Claim<'r> {
     password: &'r str,
     username: &'r str,
+}
+#[derive(Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct UserHash {
+    pub user_id: ObjectId,
+    pub hash: String,
 }
 
 #[post("/get_token", data = "<claim>")]
@@ -28,64 +35,81 @@ pub async fn get_token(
 ) -> Result<Value, ApiResponse> {
     let collection: mongodb::Collection<Users> = mongo_db.mongo.collection("users");
 
-    let user = collection
-        .find_one(Some(doc! {"username": claim.username}), None)
+    let pipeline = vec![
+        doc! {
+            "$match": { "username": claim.username }
+        },
+        doc! {
+            "$lookup": {
+                "from": "secrets",
+                "localField": "_id",
+                "foreignField": "user_id",
+                "as": "secrets"
+            }
+        },
+        doc! {
+              "$unwind": {
+                 "path": "$secrets",
+            },
+        },
+        doc! {
+            "$project": {
+                "_id": 0,
+                "user_id": "$secrets.user_id",
+                "hash": "$secrets.hash",
+            }
+        },
+    ];
+    let cursor = aggregate_on_collections(collection, pipeline)
         .await
         .map_err(|e| ApiResponse {
             json: Json(JsonMessage {
                 message: format!("error: cant find user {:?}", e),
             }),
             status: Status::BadRequest,
-        })?
-        .ok_or_else(|| ApiResponse {
-            json: Json(JsonMessage {
-                message: format!("error: cant find user"),
-            }),
-            status: Status::BadRequest,
         })?;
 
-    let secrets: mongodb::Collection<Secrets> = mongo_db.mongo.collection("secrets");
-    let secret = secrets
-        .find_one(Some(doc! {"user_id": user.id}), None)
-        .await
-        .map_err(|e| ApiResponse {
+    if let Some(document) = cursor {
+        let bson = Bson::from(document);
+        let user_hash: UserHash = from_bson(bson).unwrap();
+        let password_verified = verify_password(claim.password.as_bytes(), user_hash.hash);
+        if !password_verified {
+            return Err(ApiResponse {
+                json: Json(JsonMessage {
+                    message: format!("error: wrong password"),
+                }),
+                status: Status::Unauthorized,
+            });
+        }
+        let jwt_user = JwtUser {
+            id: user_hash.user_id,
+            role: Role::User,
+        };
+        create_jwt("token", jwt_user)
+            .map(|token| json!({ "token": token }))
+            .map_err(|err| ApiResponse {
+                json: Json(JsonMessage {
+                    message: format!("error: could not create token: {:?}", err),
+                }),
+                status: Status::BadRequest,
+            })
+    } else {
+        Err(ApiResponse {
             json: Json(JsonMessage {
-                message: format!("error: {}", e),
-            }),
-            status: Status::BadRequest,
-        })?
-        .ok_or_else(|| ApiResponse {
-            json: Json(JsonMessage {
-                message: format!("error"),
-            }),
-            status: Status::BadRequest,
-        })?;
-
-    let password_verified = verify_password(claim.password.as_bytes(), secret.hash);
-    if !password_verified {
-        return Err(ApiResponse {
-            json: Json(JsonMessage {
-                message: format!("error: wrong password"),
-            }),
-            status: Status::Unauthorized,
-        });
-    }
-
-    create_jwt("token", user)
-        .map(|token| json!({ "token": token }))
-        .map_err(|err| ApiResponse {
-            json: Json(JsonMessage {
-                message: format!("error: could not create token: {:?}", err),
+                message: format!("error: could not create token"),
             }),
             status: Status::BadRequest,
         })
+    }
+
+    // Code here will execute if both user_id and hash are present
 }
 
 #[post("/users/create", data = "<user>")]
 pub async fn create_user(
     user: Json<Claim<'_>>,
     mongo_db: &State<AppDataPool>,
-) -> Result<Value, BadRequest<serde_json::Value>> {
+) -> Result<Value, ApiResponse> {
     let collection: mongodb::Collection<Users> = mongo_db.mongo.collection("users");
     let secrets: mongodb::Collection<Secrets> = mongo_db.mongo.collection("secrets");
     let hash = create_password_hash(user.password.as_bytes());
@@ -95,10 +119,19 @@ pub async fn create_user(
         username: user.username.to_string(),
         name: None,
         created: Now(Utc::now()),
+        role: Role::User,
         modified: None,
     };
 
-    let result = collection.insert_one(user, None).await.unwrap();
+    let result = collection
+        .insert_one(user, None)
+        .await
+        .map_err(|e| ApiResponse {
+            json: Json(JsonMessage {
+                message: format!("error: cant find user {:?}", e),
+            }),
+            status: Status::BadRequest,
+        })?;
     let secret = Secrets {
         id: ObjectId::new(),
         user_id: result.inserted_id.as_object_id().unwrap(),
@@ -106,7 +139,15 @@ pub async fn create_user(
         modified: None,
         hash: hash,
     };
-    secrets.insert_one(secret, None).await.unwrap();
+    secrets
+        .insert_one(secret, None)
+        .await
+        .map_err(|err| ApiResponse {
+            json: Json(JsonMessage {
+                message: format!("error: {:?}", err),
+            }),
+            status: Status::BadRequest,
+        })?;
 
     let output = collection
         .find_one(Some(doc! {"_id": result.inserted_id}), None)
@@ -114,9 +155,12 @@ pub async fn create_user(
 
     match output {
         Ok(result) => Ok(json!(result)),
-        Err(err) => Err(status::BadRequest(Some(
-            json!({ "error": err.to_string() }),
-        ))),
+        Err(err) => Err(ApiResponse {
+            json: Json(JsonMessage {
+                message: format!("error: {:?}", err),
+            }),
+            status: Status::BadRequest,
+        }),
     }
 }
 
@@ -129,7 +173,7 @@ pub async fn post_create_collection(
         .await
         .map_err(|e| ApiResponse {
             json: Json(JsonMessage {
-                message: format!("error: cant find user {:?}", e),
+                message: format!("error: {:?}", e),
             }),
             status: Status::BadRequest,
         })
@@ -139,13 +183,4 @@ pub async fn post_create_collection(
             }),
             status: Status::Ok,
         })
-}
-
-#[post("/collection/<collection_id>", data = "<documents>")]
-pub async fn get_collection(
-    documents: Json<Value>,
-    collection_id: &str,
-    mongo_db: &State<AppDataPool>,
-) -> String {
-    format!("")
 }

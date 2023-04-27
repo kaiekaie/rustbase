@@ -7,6 +7,7 @@ use crate::routes::get::*;
 use crate::routes::post::*;
 
 use lib::data::AppDataPool;
+
 use mongodb::Client;
 use std::sync::atomic::AtomicUsize;
 #[warn(special_module_name)]
@@ -14,6 +15,9 @@ mod lib;
 mod models;
 mod routes;
 use std::env;
+
+#[macro_use]
+extern crate pest_derive;
 
 #[launch]
 async fn rocket() -> _ {
@@ -34,7 +38,6 @@ async fn rocket() -> _ {
                 test_json_get,
                 get_token,
                 post_create_collection,
-                get_collection,
                 hello,
                 create_user
             ],

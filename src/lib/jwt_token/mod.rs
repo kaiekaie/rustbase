@@ -4,21 +4,27 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 
-use mongodb::bson::Document;
+use mongodb::bson::oid::ObjectId;
+
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
 use serde::{Deserialize, Serialize};
 
-use crate::models::collection::Users;
+use crate::models::collection::Role;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
-    pub context: Users,
+    pub context: JwtUser,
     exp: usize,
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JwtUser {
+    pub id: ObjectId,
+    pub role: Role,
+}
 
-pub fn create_jwt(sub: &str, context: Users) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn create_jwt(sub: &str, context: JwtUser) -> Result<String, jsonwebtoken::errors::Error> {
     let jwt_secret = env::var("JWT_SECRET").unwrap();
     let expiration = (Utc::now() + Duration::minutes(60)).timestamp() as usize;
     let claims = Claims {
@@ -26,7 +32,7 @@ pub fn create_jwt(sub: &str, context: Users) -> Result<String, jsonwebtoken::err
         context: context,
         exp: expiration,
     };
-    let header = Header::new(Algorithm::HS256);
+    let header = Header::new(Algorithm::HS512);
     encode(
         &header,
         &claims,
@@ -39,7 +45,7 @@ fn decode_jwt(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Er
     let token = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(jwt_secret.as_bytes()),
-        &Validation::default(),
+        &Validation::new(Algorithm::HS512),
     );
     return token;
 }
