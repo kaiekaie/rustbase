@@ -83,7 +83,6 @@ fn parse_statement(input: &str) -> Result<Statement, String> {
                         let left = parse_object(inner_pairs.next().unwrap());
                         let op = parse_operator(inner_pairs.next().unwrap().as_str());
                         let right = parse_right_expression(inner_pairs.next().unwrap());
-
                         expressions.push(Expression { left, op, right });
                     }
                     Rule::join_operator => {
@@ -190,6 +189,7 @@ fn parse_operator(input: &str) -> Operator {
 }
 
 #[test]
+
 fn test_filter() {
     let input = "@request.auth.id != 200 && poop = 'asds'";
     let output = parse_statement(input);

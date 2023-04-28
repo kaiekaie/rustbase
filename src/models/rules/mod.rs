@@ -24,7 +24,7 @@ trait SharedFunctionality {
 }
 
 impl SharedFunctionality for Rules {
-    fn check_rule(&self, string: &String) -> bool {
+    fn check_rule(&self, _string: &String) -> bool {
         self::CreateRule(format!("ads"));
         true
     }

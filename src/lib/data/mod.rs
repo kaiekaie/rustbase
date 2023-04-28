@@ -62,7 +62,7 @@ pub async fn add_record(
         .await?;
     let record_collection = CRUD::new(database, name);
     if let Some(document_from) = documents {
-        if (!document_from.createrule.is_some()) {
+        if !document_from.createrule.is_some() {
             match record_collection.create(document).await {
                 Ok(res) => {
                     record_collection
@@ -150,5 +150,3 @@ impl CRUD<'_> {
         self.collection.delete_one(doc! {"_id": id}, None).await
     }
 }
-
-

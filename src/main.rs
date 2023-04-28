@@ -1,3 +1,7 @@
+#![allow(clippy::all)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(special_module_name)]
 #[macro_use]
 extern crate rocket;
 
@@ -10,7 +14,7 @@ use lib::data::AppDataPool;
 
 use mongodb::Client;
 use std::sync::atomic::AtomicUsize;
-#[warn(special_module_name)]
+
 mod lib;
 mod models;
 mod routes;
