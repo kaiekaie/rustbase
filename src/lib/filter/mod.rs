@@ -3,7 +3,10 @@
 #![allow(dead_code)]
 
 extern crate pest;
-use pest::{iterators::Pairs, Parser};
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser,
+};
 use serde::ser::Error;
 
 #[derive(Parser)]
@@ -20,8 +23,18 @@ enum Object {
 
 #[derive(Debug, Clone)]
 enum RequestEnum {
-    AuthObject { key: String },
-    HeaderObject { key: String },
+    AuthObject(Authkeys),
+    HeaderObject(HeaderKeys),
+}
+#[derive(Debug, Clone)]
+enum Authkeys {
+    id,
+    role,
+}
+#[derive(Debug, Clone)]
+enum HeaderKeys {
+    status,
+    method,
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +80,6 @@ fn parse_statement(input: &str) -> Result<Statement, String> {
                 match pair.as_rule() {
                     Rule::expression => {
                         let mut inner_pairs = pair.into_inner();
-
                         let left = parse_object(inner_pairs.next().unwrap());
                         let op = parse_operator(inner_pairs.next().unwrap().as_str());
                         let right = parse_right_expression(inner_pairs.next().unwrap());
@@ -111,17 +123,7 @@ fn parse_object(pair_optional: pest::iterators::Pair<Rule>) -> Object {
                 Rule::request => {
                     let mut inner_pairs = pair.into_inner();
                     let r = inner_pairs.next().unwrap();
-
-                    let auth = match r.as_rule() {
-                        Rule::header => RequestEnum::HeaderObject {
-                            key: parse_header_keys(r.as_str()),
-                        },
-                        Rule::auth => RequestEnum::AuthObject {
-                            key: parse_auth_keys(r.as_str()),
-                        },
-                        s => unreachable!("{:?}", s),
-                    };
-
+                    let auth = parse_request(r);
                     Object::Request(auth)
                     //Object::Identifier(String::from(""))
                 }
@@ -141,18 +143,26 @@ fn parse_object(pair_optional: pest::iterators::Pair<Rule>) -> Object {
     }
 }
 
-fn parse_auth_keys(input: &str) -> String {
-    match input {
-        "auth.id" => "id".to_string(),
-        "role.id" => "role".to_string(),
+fn parse_request(input: Pair<Rule>) -> RequestEnum {
+    match input.as_rule() {
+        Rule::header => RequestEnum::HeaderObject(parse_header_keys(input)),
+        Rule::auth => RequestEnum::AuthObject(parse_auth_keys(input)),
+        s => unreachable!("{:?}", s),
+    }
+}
+
+fn parse_auth_keys(input: Pair<Rule>) -> Authkeys {
+    match input.as_str() {
+        "auth.id" => Authkeys::id,
+        "auth.role" => Authkeys::role,
         _ => unreachable!(),
     }
 }
 
-fn parse_header_keys(input: &str) -> String {
-    match input {
-        "header.method" => "method".to_string(),
-        "header.status" => "status".to_string(),
+fn parse_header_keys(input: Pair<Rule>) -> HeaderKeys {
+    match input.as_str() {
+        "header.method" => HeaderKeys::method,
+        "header.status" => HeaderKeys::status,
         _ => unreachable!(),
     }
 }
@@ -188,11 +198,17 @@ fn test_filter() {
     for expression in expressions.expressions {
         match expression.left {
             Object::Request(RequestEnum) => match RequestEnum {
-                RequestEnum::AuthObject { key } => {
-                    println!("{:?}", key);
+                RequestEnum::AuthObject(Authkeys::id) => {
+                    println!("yas {:?}", RequestEnum)
                 }
-                RequestEnum::HeaderObject { key } => {
-                    println!("{:?}", key);
+                RequestEnum::AuthObject(Authkeys::role) => {
+                    println!("yas {:?}", RequestEnum)
+                }
+                RequestEnum::HeaderObject(HeaderKeys::method) => {
+                    println!("yas {:?}", RequestEnum)
+                }
+                RequestEnum::HeaderObject(HeaderKeys::status) => {
+                    println!("yas {:?}", RequestEnum)
                 }
                 _ => (),
             },

@@ -114,11 +114,9 @@ impl CRUD<'_> {
         CRUD {
             db,
             name,
-
             collection,
         }
     }
-
     pub async fn create(&self, document: Document) -> Result<InsertOneResult, Error> {
         self.collection.insert_one(document, None).await
     }
