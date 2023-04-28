@@ -152,3 +152,5 @@ impl CRUD<'_> {
         self.collection.delete_one(doc! {"_id": id}, None).await
     }
 }
+
+

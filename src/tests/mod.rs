@@ -5,6 +5,7 @@ mod test {
     use mongodb::bson::{doc, Document};
 
     use mongodb::bson::oid::ObjectId;
+    use pest::iterators::Pair;
     use rocket::http::{Header, Status};
 
     use serde_json::json;
@@ -13,7 +14,6 @@ mod test {
 
     use crate::lib::data::create_collection;
     use crate::lib::encryption::{create_password_hash, verify_password};
-    use crate::lib::filter::{scan, FilterParser, Rule};
 
     use crate::lib::jwt_token::{create_jwt, JwtUser};
     use crate::models::collection::{Documents, Now, Role, Users};
@@ -182,25 +182,5 @@ mod test {
         };
         let res = create_collection(db, document).await;
         assert!(res.is_ok())
-    }
-
-    #[test]
-    fn test_filter() {
-        let input = "@request.auth.id != '' && poop = 'as'";
-        let scanner = scan(input).unwrap();
-        for pair in scanner {
-            for inner_pair in pair.into_inner() {
-                match inner_pair.as_rule() {
-                    Rule::statement => {
-                        println!("{:?}", inner_pair.as_str())
-                    }
-                    Rule::expression => {
-                        println!("{:?}", inner_pair.tokens())
-                    }
-
-                    _ => (),
-                }
-            }
-        }
     }
 }
