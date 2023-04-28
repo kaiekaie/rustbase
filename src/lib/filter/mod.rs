@@ -28,13 +28,13 @@ enum RequestEnum {
 }
 #[derive(Debug, Clone)]
 enum Authkeys {
-    id,
-    role,
+    Id,
+    Role,
 }
 #[derive(Debug, Clone)]
 enum HeaderKeys {
-    status,
-    method,
+    Status,
+    Method,
 }
 
 #[derive(Debug, Clone)]
@@ -153,16 +153,16 @@ fn parse_request(input: Pair<Rule>) -> RequestEnum {
 
 fn parse_auth_keys(input: Pair<Rule>) -> Authkeys {
     match input.as_str() {
-        "auth.id" => Authkeys::id,
-        "auth.role" => Authkeys::role,
+        "auth.id" => Authkeys::Id,
+        "auth.role" => Authkeys::Role,
         _ => unreachable!(),
     }
 }
 
 fn parse_header_keys(input: Pair<Rule>) -> HeaderKeys {
     match input.as_str() {
-        "header.method" => HeaderKeys::method,
-        "header.status" => HeaderKeys::status,
+        "header.method" => HeaderKeys::Method,
+        "header.status" => HeaderKeys::Status,
         _ => unreachable!(),
     }
 }
@@ -198,16 +198,16 @@ fn test_filter() {
     for expression in expressions.expressions {
         match expression.left {
             Object::Request(RequestEnum) => match RequestEnum {
-                RequestEnum::AuthObject(Authkeys::id) => {
+                RequestEnum::AuthObject(Authkeys::Id) => {
                     println!("yas {:?}", RequestEnum)
                 }
-                RequestEnum::AuthObject(Authkeys::role) => {
+                RequestEnum::AuthObject(Authkeys::Role) => {
                     println!("yas {:?}", RequestEnum)
                 }
-                RequestEnum::HeaderObject(HeaderKeys::method) => {
+                RequestEnum::HeaderObject(HeaderKeys::Method) => {
                     println!("yas {:?}", RequestEnum)
                 }
-                RequestEnum::HeaderObject(HeaderKeys::status) => {
+                RequestEnum::HeaderObject(HeaderKeys::Status) => {
                     println!("yas {:?}", RequestEnum)
                 }
                 _ => (),
