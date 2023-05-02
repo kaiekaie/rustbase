@@ -1,3 +1,5 @@
+use core::fmt;
+
 use chrono::{DateTime, Utc};
 use mongodb::bson::{oid::ObjectId, Document};
 
@@ -18,6 +20,15 @@ pub enum ColumnTypes {
 pub enum Role {
     Admin,
     User,
+}
+
+impl fmt::Display for Role {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Role::Admin => write!(f, "admin"),
+            Role::User => write!(f, "user"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]

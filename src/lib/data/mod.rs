@@ -39,9 +39,7 @@ pub async fn create_collection(
 
 pub async fn delete_collection(database: &Database, name: String) -> Result<(), Error> {
     let collection: Collection<Document> = database.collection(name.as_str());
-
     let documents_collection: Collection<Documents> = database.collection("documents");
-
     match documents_collection
         .delete_one(doc! {"name": name}, None)
         .await
@@ -104,7 +102,6 @@ pub async fn aggregate_on_collections<T>(
 pub struct CRUD<'a> {
     db: &'a Database,
     name: String,
-
     collection: Collection<Document>,
 }
 
@@ -141,11 +138,9 @@ impl CRUD<'_> {
         }
         Ok(document)
     }
-
     fn update(&self) {
         println!("Updating...");
     }
-
     pub async fn delete(&self, id: ObjectId) -> Result<DeleteResult, mongodb::error::Error> {
         self.collection.delete_one(doc! {"_id": id}, None).await
     }

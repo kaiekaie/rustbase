@@ -15,6 +15,7 @@ mod test {
     use crate::lib::data::create_collection;
     use crate::lib::encryption::{create_password_hash, verify_password};
 
+    use crate::lib::filter::{values_checker, FakeHeader};
     use crate::lib::jwt_token::{create_jwt, JwtUser};
     use crate::models::collection::{Documents, Now, Role, Users};
 

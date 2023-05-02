@@ -1,5 +1,5 @@
 //grammar;
-operator = { "=" | "!=" | ">" | ">=" | "<" | "<=" | "~" | "!~" | "?=" | "?!=" | "?>" | "?>=" | "?<" | "?<=" | "?~" | "?!~" }
+operator = { "=" | "!=" | ">" | ">=" | "<" | "<=" | "~" | "!~" | "?=" | "?!=" }
 join_operator = { "&&" | "||" }
 whitespace = _{ " " | "\t" | "\r" | "\n" }
 
@@ -7,10 +7,11 @@ number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 identifier = @{ (ASCII_ALPHA | "_" | "@" | "#") ~ (ASCII_ALPHANUMERIC | "_" | ":" )*  }
 quoted_text = @{ ("'" ~ (!"'" ~ ANY)* ~ "'") | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
 
-expression = { (number | fixed_object | identifier | quoted_text) ~ whitespace? ~ operator ~ whitespace? ~ (fixed_object | number | identifier | quoted_text) }
+expression = { (number | fixed_object | identifier | quoted_text  | "null") ~ whitespace? ~ operator ~ whitespace? ~ (fixed_object | number | identifier | quoted_text  | "null") }
 statement = { expression ~ (whitespace? ~ join_operator ~ whitespace? ~ expression)* }
 fixed_object = { ( request | collection ) }
-request = { "@request" ~ "." ~ (auth | header)}
+request = { "@request" ~ "." ~ (auth | header | body)}
+body = { "body" ~ "." ~ identifier }
 auth = { "auth"  ~ "." ~ auth_keys  }
 auth_keys = { ( "id" | "role" )}
 header_keys = { ("method" | "status" ) }
