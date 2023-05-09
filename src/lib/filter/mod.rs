@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 extern crate pest;
-use std::f32::consts::E;
+use std::{collections::HashMap, f32::consts::E};
 
 use mongodb::{
     bson::{self, doc, Bson, Document},
@@ -13,6 +13,7 @@ use pest::{
     iterators::{Pair, Pairs},
     Parser,
 };
+use r2d2::State;
 use serde::ser::Error;
 use testcontainers::{clients, images::mongo::Mongo};
 
@@ -31,6 +32,7 @@ pub enum Object {
     Identifier(String),
     QuotedText(String),
     Number(i32),
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,8 +70,8 @@ pub struct Auth {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct FakeHeader {
-    method: String,
-    status: i32,
+    pub method: String,
+    pub status: i32,
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
@@ -115,18 +117,13 @@ pub struct Statement {
     pub join_operators: Vec<JoinOperator>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum JoinOperator {
     And,
     Or,
 }
 impl JoinOperator {
-    fn check_operator(
-        &self,
-        join_operator: JoinOperator,
-        boolean_left: bool,
-        bool_right: bool,
-    ) -> bool {
+    fn check_operator(join_operator: JoinOperator, boolean_left: bool, bool_right: bool) -> bool {
         match join_operator {
             JoinOperator::And => boolean_left && bool_right,
             JoinOperator::Or => boolean_left || bool_right,
@@ -145,17 +142,24 @@ impl JoinOperator {
 pub struct Filter {
     auth: JwtUser,
     header: FakeHeader,
-    document: Document,
     database: Database,
+    statement: Option<Statement>,
+    collection: String,
 }
 
 impl Filter {
-    fn new(auth: JwtUser, header: FakeHeader, document: Document, database: Database) -> Filter {
+    pub fn new(
+        auth: JwtUser,
+        header: FakeHeader,
+        database: Database,
+        collection: String,
+    ) -> Filter {
         Filter {
             auth: auth,
             header: header,
-            document: document,
             database: database,
+            statement: None,
+            collection,
         }
     }
     pub fn input_to_statment(input: &str) -> Result<Statement, String> {
@@ -168,9 +172,30 @@ impl Filter {
                     match pair.as_rule() {
                         Rule::expression => {
                             let mut inner_pairs = pair.into_inner();
-                            let left = parse_expression(inner_pairs.next().unwrap());
+                            let mut left = parse_expression(inner_pairs.next().unwrap());
                             let op = Operator::parse_operator(inner_pairs.next().unwrap().as_str());
-                            let right = parse_expression(inner_pairs.next().unwrap());
+                            let mut right = parse_expression(inner_pairs.next().unwrap());
+                            match left {
+                                Object::Request(_) => match right {
+                                    Object::Identifier(_) => {
+                                        let mut temp = Object::Null;
+                                        temp = left;
+                                        left = right;
+                                        right = temp;
+                                    }
+                                    _ => {}
+                                },
+                                Object::Collection(_) => match right {
+                                    Object::Identifier(_) => {
+                                        let mut temp = Object::Null;
+                                        temp = left;
+                                        left = right;
+                                        right = temp;
+                                    }
+                                    _ => {}
+                                },
+                                _ => {}
+                            }
                             expressions.push(Expression { left, op, right });
                         }
                         Rule::join_operator => {
@@ -193,17 +218,39 @@ impl Filter {
         }
     }
 
-    pub async fn validate_statement(&self, statement: Statement) -> bool {
-        let mut bool_vector = Vec::new();
-        for expression in statement.expressions {
-            let left_value = self.replace_object(expression.left.clone()).await;
-            let operator = expression.op;
-            let right_value = self.replace_object(expression.right.clone()).await;
-            let bools = values_checker(left_value, operator, right_value);
-            bool_vector.push(bools);
-        }
+    pub async fn statement_operation(&mut self, input: &str) -> bool {
+        let statement = Filter::input_to_statment(input).unwrap();
+        self.statement = Some(statement);
+        self.validate_statement().await
+    }
 
-        bool_vector.iter().all(|&x| x)
+    pub async fn validate_statement(&self) -> bool {
+        let mut map = Vec::new();
+        if let Some(statement) = &self.statement {
+            for element in statement.expressions.iter() {
+                let left_value = self.replace_object(element.left.clone()).await;
+                let operator = element.op;
+                let right_value = self.replace_object(element.right.clone()).await;
+                let bools = values_checker(left_value, operator, right_value);
+                map.push(bools);
+            }
+
+            if !statement.join_operators.is_empty() {
+                return statement
+                    .join_operators
+                    .iter()
+                    .zip(map.iter().enumerate())
+                    .fold(map[0], |acc, (&op, (i, _))| {
+                        let is_last = i == map.len() - 1;
+                        if is_last {
+                            JoinOperator::check_operator(op, acc, map[i])
+                        } else {
+                            JoinOperator::check_operator(op, map[i], map[i + 1])
+                        }
+                    });
+            }
+        }
+        map.iter().all(|&bool| bool)
     }
 
     fn bson_to_value(&self, document: Document, name: String) -> Value {
@@ -245,9 +292,13 @@ impl Filter {
                 }
                 Value::None()
             }
-            Object::Identifier(s) => self.bson_to_value(self.document.clone(), s),
+            Object::Identifier(s) => {
+                todo!("");
+                Value::None()
+            }
             Object::QuotedText(s) => Value::String(s),
             Object::Number(s) => Value::Number(s),
+            Object::Null => Value::None(),
         }
     }
 }
@@ -258,6 +309,7 @@ fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Object {
         Rule::identifier => Object::Identifier(format!("{}", { pair.as_str() })),
         Rule::quoted_text => Object::QuotedText(format!("{}", { pair.as_str().replace("'", "") })),
         Rule::number => Object::Number(pair.as_str().parse::<i32>().unwrap()),
+        Rule::null => Object::Null,
         r => unreachable!("{:?}", r),
     }
 }
@@ -286,7 +338,6 @@ fn parse_request(input: Pair<Rule>) -> RequestEnum {
         Rule::body => {
             let mut inner_pairs = input.into_inner();
             let column = inner_pairs.next().unwrap().as_str().to_string();
-
             RequestEnum::BodyObject(BodyObject { column })
         }
         s => unreachable!("{:?}", s),
@@ -334,16 +385,23 @@ pub fn values_checker(value: Value, op: Operator, value2: Value) -> bool {
 
 #[test]
 fn test_parse_statement_empty() {
-    let input = "";
-    let statement = Filter::input_to_statment(&input);
-    assert_eq!(
-        statement,
-        Err(String::from(
-            " --> 1:1\n  |\n1 | \n  | ^---\n  |\n  = expected expression"
-        ))
-    );
-}
+    let map: Vec<bool> = vec![false, false];
+    let join_operators = vec![JoinOperator::Or];
+    let result =
+        join_operators
+            .iter()
+            .zip(map.iter().enumerate())
+            .fold(map[0], |acc, (&op, (i, _))| {
+                let is_last = i == map.len() - 1;
+                if is_last {
+                    JoinOperator::check_operator(op, acc, map[i])
+                } else {
+                    JoinOperator::check_operator(op, map[i], map[i + 1])
+                }
+            });
 
+    println!("hello {:?}", result);
+}
 #[test]
 fn test_parse_request_body() {
     let input = "@request.body.tester = 'adaw'";
@@ -389,6 +447,7 @@ fn test_parse_statement_multiple_expressions() {
         op: Operator::Equal,
         right: Object::QuotedText(String::from("admin")),
     };
+
     let expected_statement = Statement {
         expressions: vec![expected_expression_1, expected_expression_2],
         join_operators: vec![JoinOperator::And],
@@ -416,9 +475,9 @@ fn test_parse_statement_single() {
 fn test_parse_statement_object_to_identifier() {
     let input = "@request.auth.id = user_id";
     let expected_expression = Expression {
-        left: Object::Request(RequestEnum::AuthObject(Authkeys::Id)),
+        left: Object::Identifier(String::from("user_id")),
         op: Operator::Equal,
-        right: Object::Identifier(String::from("user_id")),
+        right: Object::Request(RequestEnum::AuthObject(Authkeys::Id)),
     };
 
     let expected_statement = Statement {

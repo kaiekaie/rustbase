@@ -7,12 +7,14 @@ number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 identifier = @{ (ASCII_ALPHA | "_" | "@" | "#") ~ (ASCII_ALPHANUMERIC | "_" | ":" )*  }
 quoted_text = @{ ("'" ~ (!"'" ~ ANY)* ~ "'") | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
 
-expression = { (number | fixed_object | identifier | quoted_text  | "null") ~ whitespace? ~ operator ~ whitespace? ~ (fixed_object | number | identifier | quoted_text  | "null") }
+expression = { (number | null | fixed_object | identifier | quoted_text ) ~ whitespace? ~ operator ~ whitespace? ~ ( number | null | fixed_object | identifier | quoted_text) }
 statement = { expression ~ (whitespace? ~ join_operator ~ whitespace? ~ expression)* }
 fixed_object = { ( request | collection ) }
 request = { "@request" ~ "." ~ (auth | header | body)}
 body = { "body" ~ "." ~ identifier }
 auth = { "auth"  ~ "." ~ auth_keys  }
+null = @{ ("'" ~ null_text ~ "'") | ("\"" ~ null_text ~ "\"") }
+null_text = { ("NULL" | "null" | "" )}
 auth_keys = { ( "id" | "role" )}
 header_keys = { ("method" | "status" ) }
 header = { "header" ~ "." ~ header_keys }
