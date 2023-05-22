@@ -25,6 +25,10 @@ db.createCollection("users", {
         modified: {
           bsonType: ["null", "date"],
         },
+        role: {
+          enum: ["Admin", "User"],
+          bsonType: "string",
+        },
       },
     },
   },
