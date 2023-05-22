@@ -1,16 +1,24 @@
+use std::collections::HashMap;
 use std::env;
 
+use actix_web::web::Json;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::password_hash::SaltString;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 
 use mongodb::bson::oid::ObjectId;
-
-use rocket::http::Status;
-use rocket::request::{self, FromRequest, Request};
-use serde::{Deserialize, Serialize};
+use mongodb::bson::Document;
 
 use crate::models::collection::Role;
+use log::debug;
+use log::error;
+use log::info;
+use log::warn;
+use serde::{Deserialize, Serialize};
+
+use super::filter::Value;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -21,12 +29,37 @@ pub struct Claims {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtUser {
     pub id: ObjectId,
-    pub role: Role,
+    pub data: Document,
+}
+
+pub fn get_jwt_token() -> Vec<u8> {
+    let jwt_secret_env = env::var("JWT_SECRET");
+
+    match jwt_secret_env {
+        Ok(jwt_secret) => jwt_secret.into_bytes(),
+        Err(err) => {
+            error!("error {}", err);
+            panic!("{}", err)
+        }
+    }
+}
+
+pub fn set_jwt_token() {
+    let jwt_secret_env = env::var("JWT_SECRET");
+
+    match jwt_secret_env {
+        Ok(_) => info!("jwt token is set"),
+        Err(_) => {
+            let salt: String = SaltString::generate(&mut OsRng).to_string();
+            info!("jwt token is missing creating new {}", salt);
+            env::set_var("JWT_SECRET", salt)
+        }
+    };
 }
 
 pub fn create_jwt(sub: &str, context: JwtUser) -> Result<String, jsonwebtoken::errors::Error> {
-    let jwt_secret = env::var("JWT_SECRET").unwrap();
-    let expiration = (Utc::now() + Duration::minutes(60)).timestamp() as usize;
+    let secret = get_jwt_token();
+    let expiration = (Utc::now() + Duration::days(1)).timestamp() as usize;
     let claims = Claims {
         sub: sub.to_owned(),
         context: context,
@@ -36,45 +69,16 @@ pub fn create_jwt(sub: &str, context: JwtUser) -> Result<String, jsonwebtoken::e
     encode(
         &header,
         &claims,
-        &EncodingKey::from_secret(jwt_secret.as_bytes()),
+        &EncodingKey::from_secret(secret.as_slice()),
     )
 }
 
-fn decode_jwt(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
-    let jwt_secret = env::var("JWT_SECRET").unwrap();
+pub fn decode_jwt(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    let secret = get_jwt_token();
     let token = decode::<Claims>(
         &token,
-        &DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &DecodingKey::from_secret(secret.as_slice()),
         &Validation::new(Algorithm::HS512),
     );
     return token;
-}
-
-#[derive(Debug)]
-pub enum ApiKeyError {
-    Missing,
-    Invalid,
-}
-
-#[derive(Debug)]
-pub struct Token(Claims);
-
-#[rocket::async_trait]
-
-impl<'r> FromRequest<'r> for Claims {
-    type Error = ApiKeyError;
-
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Claims, Self::Error> {
-        let auth_header = request.headers().get_one("Authorization");
-
-        if let Some(auth_header_value) = auth_header {
-            let token = auth_header_value.trim_start_matches("Bearer ");
-            match decode_jwt(token) {
-                Ok(claims) => request::Outcome::Success(claims.claims),
-                Err(_) => request::Outcome::Failure((Status::Unauthorized, ApiKeyError::Invalid)),
-            }
-        } else {
-            request::Outcome::Failure((Status::Unauthorized, ApiKeyError::Missing))
-        }
-    }
 }

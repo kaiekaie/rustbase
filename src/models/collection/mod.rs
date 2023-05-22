@@ -1,7 +1,7 @@
 use core::fmt;
 
 use chrono::{DateTime, Utc};
-use mongodb::bson::{oid::ObjectId, Document};
+use mongodb::bson::{self, oid::ObjectId, Document};
 
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,6 @@ pub struct Schema {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(crate = "rocket::serde")]
 
 pub struct Documents {
     #[serde(rename = "_id")]
@@ -52,7 +51,7 @@ pub struct Documents {
     #[serde(skip_deserializing)]
     pub created: Now,
     #[serde(skip_deserializing)]
-    pub modified: Option<DateTime<Utc>>,
+    pub modified: Option<bson::DateTime>,
     pub listrule: Option<ListRule>,
     pub viewrule: Option<ViewRule>,
     pub createrule: Option<CreateRule>,
@@ -62,16 +61,16 @@ pub struct Documents {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Now(pub DateTime<Utc>);
+pub struct Now(pub bson::DateTime);
 
 impl Default for Now {
     fn default() -> Self {
-        Now(Utc::now())
+        Now(bson::DateTime::now())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
+
 pub struct Users {
     #[serde(rename = "_id")]
     pub id: ObjectId,
@@ -80,19 +79,46 @@ pub struct Users {
     #[serde(skip_deserializing)]
     pub created: Now,
     #[serde(skip_deserializing)]
-    pub modified: Option<DateTime<Utc>>,
+    pub modified: Option<bson::DateTime>,
     pub role: Role,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
+
+pub struct Admin {
+    #[serde(rename = "_id")]
+    pub id: ObjectId,
+    pub username: String,
+    pub name: Option<String>,
+    #[serde(skip_deserializing)]
+    pub created: Now,
+    #[serde(skip_deserializing)]
+    pub modified: Option<bson::DateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+
 pub struct Secrets {
     #[serde(rename = "_id")]
     pub id: ObjectId,
     #[serde(skip_deserializing)]
     pub created: Now,
     #[serde(skip_deserializing)]
-    pub modified: Option<DateTime<Utc>>,
+    pub modified: Option<bson::DateTime>,
     pub hash: String,
     pub user_id: ObjectId,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Claim {
+    pub password: String,
+    pub username: String,
+}
+
+#[derive(Deserialize, Debug)]
+
+pub struct UserHash {
+    pub user_id: ObjectId,
+    pub hash: String,
+    pub data: Document,
 }

@@ -1,15 +1,13 @@
-use chrono::Utc;
+/* use chrono::Utc;
 use mongodb::bson::{doc, from_bson, Bson};
 
 use mongodb::bson::oid::ObjectId;
 
-use rocket::http::Status;
+use actix_web::{get, post, web, HttpResponse, Responder};
 
-use rocket::serde::{json::*, Deserialize};
-use rocket::State;
 use serde_json::json;
 
-use crate::lib::data::{aggregate_on_collections, create_collection, AppDataPool};
+
 use crate::lib::encryption::{create_password_hash, verify_password};
 use crate::lib::jwt_token::{create_jwt, JwtUser};
 use crate::models::api_response::{ApiResponse, JsonMessage};
@@ -21,12 +19,7 @@ pub struct Claim<'r> {
     password: &'r str,
     username: &'r str,
 }
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub struct UserHash {
-    pub user_id: ObjectId,
-    pub hash: String,
-}
+
 
 #[post("/get_token", data = "<claim>")]
 pub async fn get_token(
@@ -184,3 +177,4 @@ pub async fn post_create_collection(
             status: Status::Ok,
         })
 }
+ */

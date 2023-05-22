@@ -1,27 +1,43 @@
-use rocket::http::{ContentType, Status};
+use std::fmt::Display;
 
-use rocket::request::Request;
-use rocket::response;
-use rocket::response::{Responder, Response};
-use rocket::serde::json::Json;
+use actix_web::body::BoxBody;
+use actix_web::web::Json;
+use actix_web::ResponseError;
+use actix_web::{http::StatusCode, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JsonMessage {
-    pub message: String,
+    pub message: Value,
 }
 
 #[derive(Debug)]
 pub struct ApiResponse {
-    pub json: Json<JsonMessage>,
-    pub status: Status,
+    pub json: Value,
+    pub status: StatusCode,
 }
 
-impl<'r> Responder<'r, 'r> for ApiResponse {
-    fn respond_to(self, req: &Request) -> response::Result<'r> {
-        Response::build_from(self.json.respond_to(&req).unwrap())
-            .status(self.status)
-            .header(ContentType::JSON)
-            .ok()
+impl Responder for ApiResponse {
+    type Body = BoxBody;
+    fn respond_to(self, _: &actix_web::HttpRequest) -> HttpResponse<Self::Body> {
+        HttpResponse::build(self.status).json(self.json).into()
+    }
+}
+impl ResponseError for ApiResponse {
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status).json(self.json.clone())
+    }
+}
+
+impl Display for ApiResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.json)
+    }
+}
+
+impl Display for JsonMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
