@@ -118,7 +118,9 @@ pub struct Claim {
 #[derive(Deserialize, Debug)]
 
 pub struct UserHash {
+    #[serde(serialize_with = "serialize_hex_string_as_object_id")]
     pub user_id: ObjectId,
     pub hash: String,
+    #[serde(serialize_with = "serialize_hex_string_as_object_id")]
     pub data: Document,
 }
