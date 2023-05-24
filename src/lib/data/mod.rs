@@ -78,27 +78,21 @@ pub async fn add_record(
 
  */
 
-use std::collections::HashMap;
+use actix_web::{http::StatusCode, web::Data};
 
-use actix_web::{
-    http::StatusCode,
-    web::{Data, Json},
-};
-use chrono::Utc;
 use futures_util::StreamExt;
-use jsonwebtoken::errors::ErrorKind;
+
 use mongodb::{
-    bson::{self, doc, from_bson, oid::ObjectId, to_bson, Bson, Document},
+    bson::{self, doc, from_bson, oid::ObjectId, Bson, Document},
     error::Error,
-    options::{ReplaceOptions, UpdateOptions},
-    results::InsertOneResult,
+    options::{CountOptions, UpdateOptions},
     Collection, Database,
 };
 use serde_json::{json, Value};
 
 use crate::models::{
-    api_response::{ApiResponse, JsonMessage},
-    collection::{Claim, Now, Role, Secrets, UserHash, Users},
+    api_response::ApiResponse,
+    collection::{Admin, AuthResponse, Claim, Now, Role, Secrets, UserHash, Users},
 };
 
 use super::{
@@ -206,8 +200,14 @@ fn error_parser(err: Error) -> Value {
 pub async fn authenticate_user(
     mongo_db: Data<Database>,
     claim: Claim,
-) -> Result<String, ApiResponse> {
-    let collection: mongodb::Collection<Users> = mongo_db.collection("users");
+    role: Role,
+) -> Result<AuthResponse, ApiResponse> {
+    let role_str = match role {
+        Role::User => "users",
+        Role::Admin => "admins",
+    };
+
+    let collection: mongodb::Collection<Document> = mongo_db.collection(role_str);
 
     let pipeline = vec![
         doc! {
@@ -228,7 +228,7 @@ pub async fn authenticate_user(
         },
         doc! {
            "$lookup": {
-              "from": "users",
+              "from": role_str,
               "localField": "_id",    // field in the orders collection
               "foreignField": "_id",  // field in the items collection
               "as": "user_data"
@@ -267,12 +267,15 @@ pub async fn authenticate_user(
 
         let jwt_user = JwtUser {
             id: user_hash.user_id,
-            data: user_hash.data,
+
+            role: role,
         };
 
-        println!("{:?}", jwt_user);
-        create_jwt("token", jwt_user)
-            .map(|token| token)
+        create_jwt("jwt_token", jwt_user)
+            .map(|token| AuthResponse {
+                token,
+                data: user_hash.data,
+            })
             .map_err(|err| ApiResponse {
                 json: json! {err.to_string()},
                 status: StatusCode::BAD_REQUEST,
@@ -285,6 +288,95 @@ pub async fn authenticate_user(
     }
 
     // Code here will execute if both user_id and hash are present
+}
+
+pub async fn create_first_admin(
+    mongo_db: Data<Database>,
+    claim: Claim,
+) -> Result<Value, ApiResponse> {
+    let collection: mongodb::Collection<Admin> = mongo_db.collection("admins");
+    let limit = collection
+        .count_documents(doc! {}, CountOptions::builder().limit(1).build())
+        .await;
+
+    match limit {
+        Ok(limit) => {
+            if limit == 0 {
+                create_admin(mongo_db, claim).await
+            } else {
+                Err(ApiResponse {
+                    json: json! {{ "messsage" : format!("admin exists") }},
+                    status: StatusCode::BAD_REQUEST,
+                })
+            }
+        }
+        Err(err) => Err(ApiResponse {
+            json: json! {{ "messsage" : format!("{}",err) }},
+            status: StatusCode::BAD_REQUEST,
+        }),
+    }
+}
+
+pub async fn create_admin(mongo_db: Data<Database>, claim: Claim) -> Result<Value, ApiResponse> {
+    let collection: mongodb::Collection<Admin> = mongo_db.collection("admins");
+    let secrets: mongodb::Collection<Secrets> = mongo_db.collection("secrets");
+    let hash = create_password_hash(claim.password.as_bytes());
+
+    let user = Admin {
+        id: ObjectId::new(),
+        username: claim.username.to_string(),
+        name: None,
+        created: Now(bson::DateTime::now()),
+        modified: None,
+    };
+    let user_bson = bson::to_bson(&user).expect("Failed to serialize user");
+    let user_document = user_bson
+        .as_document()
+        .expect("Failed to convert user to document")
+        .clone();
+
+    let result = collection
+        .update_one(
+            doc! {"username": user.username},
+            doc! {"$setOnInsert": user_document},
+            UpdateOptions::builder().upsert(true).build(),
+        )
+        .await
+        .map_err(|err| ApiResponse {
+            json: error_parser(err),
+            status: StatusCode::BAD_REQUEST,
+        })?;
+
+    if let Some(u_id) = result.upserted_id {
+        let user_id: ObjectId = u_id.as_object_id().unwrap();
+        let secret = Secrets {
+            id: ObjectId::new(),
+            user_id: user_id,
+            created: Now(bson::DateTime::now()),
+            modified: None,
+            hash: hash,
+        };
+        secrets
+            .insert_one(secret, None)
+            .await
+            .map_err(|err| ApiResponse {
+                json: error_parser(err),
+                status: StatusCode::BAD_REQUEST,
+            })?;
+        let output = collection.find_one(Some(doc! {"_id": user_id}), None).await;
+        match output {
+            Ok(result) => Ok(json!(result)),
+            Err(err) => Err(ApiResponse {
+                json: error_parser(err),
+                status: StatusCode::BAD_REQUEST,
+            }),
+        }
+    } else {
+        Err(ApiResponse {
+            json: json! {{ "messsage" : format!("user already exist") }},
+            status: StatusCode::BAD_REQUEST,
+        })
+    }
 }
 
 /* pub struct CRUD<'a> {

@@ -47,10 +47,6 @@ pub struct Claim {
     password: String,
     username: String,
 }
-#[actix_web::get("/test")]
-async fn get_token(auth_service: AuthorizationService) -> HttpResponse {
-    HttpResponse::Ok().body(format!("Hello, {:?}!", auth_service.token))
-}
 
 #[actix_web::post("/generate_token")]
 async fn generate_token(claim: Json<Claim>) -> Result<HttpResponse, ApiResponse> {

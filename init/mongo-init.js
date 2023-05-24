@@ -2,7 +2,6 @@ print(
   "Start #################################################################"
 );
 db = connect("localhost:27017/rustplatform");
-db.createCollection("documents");
 
 db.createCollection("users", {
   validator: {
@@ -28,6 +27,31 @@ db.createCollection("users", {
         role: {
           enum: ["Admin", "User"],
           bsonType: "string",
+        },
+      },
+    },
+  },
+});
+db.createCollection("admins", {
+  validator: {
+    $jsonSchema: {
+      required: ["_id", "username", "created"],
+      properties: {
+        _id: {
+          bsonType: "objectId",
+        },
+        username: {
+          bsonType: "string",
+          pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+        },
+        name: {
+          bsonType: ["null", "string"],
+        },
+        created: {
+          bsonType: "date",
+        },
+        modified: {
+          bsonType: ["null", "date"],
         },
       },
     },

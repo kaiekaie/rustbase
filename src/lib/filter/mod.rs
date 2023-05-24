@@ -271,9 +271,7 @@ impl Filter {
             Object::Request(e) => match e {
                 RequestEnum::AuthObject(auth_keys) => match auth_keys {
                     Authkeys::Id => Value::String(self.auth.id.to_string()),
-                    Authkeys::Role => {
-                        Value::String(self.auth.data.get("role").unwrap().to_string())
-                    }
+                    Authkeys::Role => Value::String(self.auth.role.to_string()),
                 },
                 RequestEnum::HeaderObject(header_keys) => match header_keys {
                     HeaderKeys::Method => Value::String(self.header.method.clone()),
@@ -294,7 +292,7 @@ impl Filter {
                 }
                 Value::None()
             }
-            Object::Identifier(s) => {
+            Object::Identifier(_s) => {
                 todo!("");
                 Value::None()
             }

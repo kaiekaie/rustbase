@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use actix_web::body::BoxBody;
-use actix_web::web::Json;
+
 use actix_web::ResponseError;
 use actix_web::{http::StatusCode, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};

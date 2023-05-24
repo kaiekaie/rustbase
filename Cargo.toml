@@ -35,6 +35,7 @@ futures-util = "0.3.28"
 futures = "0.3.28"
 actix-cors = "0.6.4"
 log = "0.4.17"
+actix-session = { version = "0.7.2", features = ["cookie-session"] }
 
 [[bin]]
 name = "rustdeployment"

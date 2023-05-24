@@ -311,7 +311,7 @@ JwtUser(ObjectId::new(), tester)
 */
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, env, error::Error, str::Bytes};
+    use std::env;
 
     use crate::{
         lib::jwt_token::{create_jwt, JwtUser},
@@ -319,14 +319,12 @@ mod tests {
         scopes,
     };
 
-    use super::*;
     use actix_web::{
-        body::{self, BoxBody},
-        guard::Header,
+        body::{self},
         http::StatusCode,
         test, web, App,
     };
-    use mongodb::bson::{oid::ObjectId, Document};
+    use mongodb::bson::oid::ObjectId;
     use serde_json::{json, Value};
     use testcontainers::{clients, images::mongo::Mongo};
 
@@ -358,7 +356,8 @@ mod tests {
 
         let jwt_user = JwtUser {
             id: ObjectId::new(),
-            data: Document::new(),
+
+            role: Role::User,
         };
         println!("{:?}", jwt_user);
         let token = create_jwt("tester", jwt_user).unwrap();
@@ -446,8 +445,8 @@ mod tests {
         }};
 
         let authenticate_req = test::TestRequest::post()
-            .uri("/api/users/authenticate")
-            .set_json(user_json_two.clone())
+            .uri("/api/users/authenticate/User")
+            .set_json(user_json_two)
             .to_request();
 
         let authenticate_resp: actix_web::dev::ServiceResponse =

@@ -1,6 +1,5 @@
 use core::fmt;
 
-use chrono::{DateTime, Utc};
 use mongodb::bson::{self, oid::ObjectId, Document};
 
 use serde::{Deserialize, Serialize};
@@ -16,7 +15,7 @@ pub enum ColumnTypes {
     Relation,
     Date,
 }
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, PartialEq)]
 pub enum Role {
     Admin,
     User,
@@ -118,9 +117,13 @@ pub struct Claim {
 #[derive(Deserialize, Debug)]
 
 pub struct UserHash {
-    #[serde(serialize_with = "serialize_hex_string_as_object_id")]
     pub user_id: ObjectId,
     pub hash: String,
-    #[serde(serialize_with = "serialize_hex_string_as_object_id")]
+    pub data: Document,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub token: String,
     pub data: Document,
 }

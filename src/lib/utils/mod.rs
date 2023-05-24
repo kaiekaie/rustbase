@@ -1,25 +1,29 @@
-use std::fmt::{format, Display};
-use std::io::ErrorKind;
+use std::env;
+use std::fmt::Display;
 
 use crate::lib::jwt_token::decode_jwt;
+use crate::models::collection::Role;
 
-use super::jwt_token::Claims;
+use super::jwt_token::{create_jwt, Claims};
 
+use actix_session::Session;
+use actix_web::cookie::time::OffsetDateTime;
 use actix_web::cookie::{time, Cookie};
-use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
-use actix_web::http::header::HeaderValue;
+
 use actix_web::http::StatusCode;
-use actix_web::{dev, Error, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use env_logger::Builder;
+use actix_web::{dev, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+
 use futures::future::{err, ok, Ready};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use pest::pratt_parser::Op;
+
+use jsonwebtoken::decode_header;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-#[derive(Debug)]
-pub struct AuthorizationService {
-    pub token: Claims,
-}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthorizationService(Claims);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthorizationServiceAdmin(Claims);
 
 #[derive(Debug)]
 pub struct CustomError {
@@ -76,14 +80,18 @@ fn extract_token(req: &HttpRequest) -> Option<String> {
 impl FromRequest for AuthorizationService {
     type Error = CustomError;
     type Future = Ready<Result<AuthorizationService, Self::Error>>;
-    fn from_request(_req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
-        let token = extract_token(_req);
+    fn from_request(req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
+        let token = extract_token(req);
+        let binding = Session::extract(req).into_inner().unwrap();
+        let sess = binding.entries();
+        println!("{:?}", sess);
+
         if let Some(tok) = token {
             let token_verified = decode_jwt(&tok);
             return match token_verified {
-                Ok(token) => ok::<AuthorizationService, Self::Error>(AuthorizationService {
-                    token: token.claims,
-                }),
+                Ok(token) => {
+                    ok::<AuthorizationService, Self::Error>(AuthorizationService(token.claims))
+                }
                 Err(error) => err(CustomError::new(
                     format!("Invalid token {:?}", error.kind()),
                     StatusCode::UNAUTHORIZED,
@@ -101,7 +109,82 @@ impl FromRequest for AuthorizationService {
     }
 }
 
-pub async fn handler(req: HttpRequest) -> impl Responder {
-    println!("asdsa");
+impl FromRequest for AuthorizationServiceAdmin {
+    type Error = CustomError;
+    type Future = Ready<Result<AuthorizationServiceAdmin, Self::Error>>;
+    fn from_request(_req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
+        let token = extract_token(_req);
+        if let Some(tok) = token {
+            let token_verified = decode_jwt(&tok);
+
+            return match token_verified {
+                Ok(token) => {
+                    if token.claims.context.role == Role::Admin {
+                        ok::<AuthorizationServiceAdmin, Self::Error>(AuthorizationServiceAdmin(
+                            token.claims,
+                        ))
+                    } else {
+                        err(CustomError::new(
+                            format!("Only for admins "),
+                            StatusCode::UNAUTHORIZED,
+                        ))
+                    }
+                }
+                Err(error) => match error.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                        let tokenReader = decode_header(&tok);
+                        println!("{:?}", tokenReader);
+                        todo!()
+                    }
+
+                    e => err(CustomError::new(
+                        format!("Error: {:?}", e),
+                        StatusCode::UNAUTHORIZED,
+                    )),
+                },
+            };
+        }
+        err(CustomError::new(
+            format!("Missing authorization token"),
+            StatusCode::BAD_REQUEST,
+        ))
+    }
+
+    fn extract(req: &HttpRequest) -> Self::Future {
+        Self::from_request(req, &mut dev::Payload::None)
+    }
+}
+
+pub async fn handler(_req: HttpRequest) -> impl Responder {
+    println!("{:?}", _req);
+
     HttpResponse::Ok().body("jello")
 }
+
+pub trait CookiesCreater {
+    fn create_cookies<'a>(
+        name: &str,
+        value: &str,
+        domain: &str,
+        http_only: bool,
+        expires: Option<OffsetDateTime>,
+    ) -> Cookie<'a> {
+        let domain_env =
+            env::var("DOMAIN").map_or_else(|_| String::from(domain), |s| String::from(s));
+        let cookie_builder = Cookie::build(String::from(name), String::from(value))
+            .same_site(actix_web::cookie::SameSite::Lax)
+            .domain(domain_env)
+            .http_only(http_only)
+            .secure(false)
+            .path("/");
+        if let Some(expiration) = expires {
+            cookie_builder.expires(expiration).finish()
+        } else {
+            cookie_builder.finish()
+        }
+    }
+}
+
+pub struct Cookies;
+
+impl CookiesCreater for Cookies {}

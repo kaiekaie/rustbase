@@ -1,7 +1,5 @@
-use std::collections::HashMap;
 use std::env;
 
-use actix_web::web::Json;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use chrono::{Duration, Utc};
@@ -9,16 +7,13 @@ use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 
 use mongodb::bson::oid::ObjectId;
-use mongodb::bson::Document;
 
-use crate::models::collection::Role;
-use log::debug;
 use log::error;
 use log::info;
-use log::warn;
+
 use serde::{Deserialize, Serialize};
 
-use super::filter::Value;
+use crate::models::collection::Role;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -29,7 +24,7 @@ pub struct Claims {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtUser {
     pub id: ObjectId,
-    pub data: Document,
+    pub role: Role,
 }
 
 pub fn get_jwt_token() -> Vec<u8> {
@@ -59,7 +54,7 @@ pub fn set_jwt_token() {
 
 pub fn create_jwt(sub: &str, context: JwtUser) -> Result<String, jsonwebtoken::errors::Error> {
     let secret = get_jwt_token();
-    let expiration = (Utc::now() + Duration::days(1)).timestamp() as usize;
+    let expiration = (Utc::now() + Duration::minutes(30)).timestamp() as usize;
     let claims = Claims {
         sub: sub.to_owned(),
         context: context,
