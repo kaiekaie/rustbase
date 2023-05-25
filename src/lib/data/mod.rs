@@ -91,14 +91,11 @@ use mongodb::{
 use serde_json::{json, Value};
 
 use crate::models::{
-    api_response::ApiResponse,
-    collection::{Admin, AuthResponse, Claim, Now, Role, Secrets, UserHash, Users},
+    api::ApiResponse,
+    collection::{Admin, AuthResponse, Claim, Now, Role, ScopeUser, Secrets, UserHash, Users},
 };
 
-use super::{
-    encryption::{create_password_hash, verify_password},
-    jwt_token::{create_jwt, JwtUser},
-};
+use super::encryption::{create_password_hash, verify_password};
 
 pub async fn aggregate_on_collections<T>(
     database: Collection<T>,
@@ -201,7 +198,7 @@ pub async fn authenticate_user(
     mongo_db: Data<Database>,
     claim: Claim,
     role: Role,
-) -> Result<AuthResponse, ApiResponse> {
+) -> Result<ScopeUser, ApiResponse> {
     let role_str = match role {
         Role::User => "users",
         Role::Admin => "admins",
@@ -265,21 +262,10 @@ pub async fn authenticate_user(
             });
         }
 
-        let jwt_user = JwtUser {
-            id: user_hash.user_id,
-
-            role: role,
-        };
-
-        create_jwt("jwt_token", jwt_user)
-            .map(|token| AuthResponse {
-                token,
-                data: user_hash.data,
-            })
-            .map_err(|err| ApiResponse {
-                json: json! {err.to_string()},
-                status: StatusCode::BAD_REQUEST,
-            })
+        Ok(ScopeUser {
+            user_id: user_hash.user_id,
+            scope: role,
+        })
     } else {
         Err(ApiResponse {
             json: json! {{"message" : "can't find user"}},
@@ -378,6 +364,8 @@ pub async fn create_admin(mongo_db: Data<Database>, claim: Claim) -> Result<Valu
         })
     }
 }
+
+fn create_refresh_token() {}
 
 /* pub struct CRUD<'a> {
     db: &'a Database,

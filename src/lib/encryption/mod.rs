@@ -7,9 +7,7 @@ use base64::Engine;
 pub fn create_password_hash(password: &[u8]) -> String {
     let argon2 = Argon2::default();
     let salt = SaltString::generate(&mut OsRng);
-    
     let password_hash = argon2.hash_password(password, &salt).unwrap();
-
     general_purpose::STANDARD_NO_PAD.encode(password_hash.to_string())
 }
 

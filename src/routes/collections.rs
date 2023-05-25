@@ -1,34 +1,25 @@
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 
-use crate::lib::utils::AuthorizationServiceAdmin;
+use crate::{lib::authorized::Authorized, models::api::Scopes};
 
-use super::CreateScope;
+use crate::models::api::CreateScope;
 
 #[get("")]
-pub async fn get_collections(_: AuthorizationServiceAdmin) -> impl Responder {
+pub async fn get_collections(_: Authorized) -> impl Responder {
     HttpResponse::Ok().json("Item read")
 }
 
 #[post("{name}")]
-pub async fn create_collection(
-    name: web::Path<String>,
-    _: AuthorizationServiceAdmin,
-) -> impl Responder {
+pub async fn create_collection(name: web::Path<String>, _: Authorized) -> impl Responder {
     HttpResponse::Ok().json(format!("{}", name))
 }
 
 #[put("{name}")]
-pub async fn update_collection(
-    name: web::Path<String>,
-    _: AuthorizationServiceAdmin,
-) -> impl Responder {
+pub async fn update_collection(name: web::Path<String>, _: Authorized) -> impl Responder {
     HttpResponse::Ok().json(format!("{}", name))
 }
 #[delete("{name}")]
-pub async fn delete_collection(
-    name: web::Path<String>,
-    _: AuthorizationServiceAdmin,
-) -> impl Responder {
+pub async fn delete_collection(name: web::Path<String>, _: Authorized) -> impl Responder {
     HttpResponse::Ok().json(format!("{}", name))
 }
 
@@ -40,5 +31,8 @@ impl CreateScope for Collections {
             .service(create_collection)
             .service(update_collection)
             .service(delete_collection)
+            .app_data(web::Data::new(Scopes {
+                list: vec!["admin".to_string()],
+            }))
     }
 }

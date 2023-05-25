@@ -3,26 +3,25 @@
 
 extern crate serde;
 
-use crate::routes::api::*;
-
 use actix_cors::Cors;
 
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::cookie::Key;
+
 use actix_web::middleware::Compress;
 use actix_web::middleware::Logger;
 
 use actix_web::Scope;
 use actix_web::{web, App, HttpServer};
 
-use lib::jwt_token::set_jwt_token;
-
+use lib::jwt::Jwt;
 use lib::utils::handler;
+use models::api::CreateScope;
 use mongodb::Client;
 
-use routes::api::admins::Admins;
-use routes::api::collections::Collections;
-use routes::api::users::Users;
+use routes::admins::Admins;
+use routes::collections::Collections;
+use routes::users::Users;
 
 mod lib;
 mod models;
@@ -55,12 +54,13 @@ async fn main() -> std::io::Result<()> {
 
     std::env::set_var("RUST_LOG", "actix_web=info");
     let secret_key = Key::generate();
-    set_jwt_token();
+
     HttpServer::new(move || {
         let cors = Cors::default();
 
         App::new()
             .wrap(cors)
+            .app_data(web::Data::new(Jwt::new(None)))
             .wrap(Logger::default())
             .wrap(Compress::default())
             .app_data(web::Data::new(db.clone()))

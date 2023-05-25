@@ -19,7 +19,7 @@ use testcontainers::{clients, images::mongo::Mongo};
 
 use crate::models::collection;
 
-use super::jwt_token::JwtUser;
+use super::jwt::Jwt;
 
 #[derive(Parser)]
 #[grammar = "filter_parser.pest"] // relative to src
@@ -140,7 +140,7 @@ impl JoinOperator {
 
 #[derive(Debug)]
 pub struct Filter {
-    auth: JwtUser,
+    auth: HashMap<String, serde_json::Value>,
     header: FakeHeader,
     database: Database,
     statement: Option<Statement>,
@@ -149,7 +149,7 @@ pub struct Filter {
 
 impl Filter {
     pub fn new(
-        auth: JwtUser,
+        auth: HashMap<String, serde_json::Value>,
         header: FakeHeader,
         database: Database,
         collection: String,
@@ -270,8 +270,8 @@ impl Filter {
         match object {
             Object::Request(e) => match e {
                 RequestEnum::AuthObject(auth_keys) => match auth_keys {
-                    Authkeys::Id => Value::String(self.auth.id.to_string()),
-                    Authkeys::Role => Value::String(self.auth.role.to_string()),
+                    Authkeys::Id => Value::String(self.auth.get("id").unwrap().to_string()),
+                    Authkeys::Role => Value::String(self.auth.get("role").unwrap().to_string()),
                 },
                 RequestEnum::HeaderObject(header_keys) => match header_keys {
                     HeaderKeys::Method => Value::String(self.header.method.clone()),

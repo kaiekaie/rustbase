@@ -1,11 +1,12 @@
+use std::collections::HashMap;
+
 use actix_session::Session;
 use actix_web::{
-    cookie::time::{self, OffsetDateTime},
     get,
     http::StatusCode,
     post,
     web::{self, Data},
-    HttpResponse, Scope,
+    HttpResponse, ResponseError, Scope,
 };
 
 use mongodb::Database;
@@ -13,17 +14,23 @@ use serde_json::json;
 
 use crate::{
     lib::{
+        authorized::Authorized,
         data::{authenticate_user, create_user},
-        utils::{AuthorizationService, Cookies, CookiesCreater},
+        jwt::Jwt,
+        utils::CookiesCreater,
     },
-    models::collection::{Claim, Role},
+    models::{
+        api::{CreateScope, Scopes},
+        collection::{Claim, Role},
+    },
 };
 
-use super::CreateScope;
-
 #[get("/test")]
-async fn test_token(auth_service: AuthorizationService) -> HttpResponse {
-    HttpResponse::Ok().json(auth_service)
+async fn test_token(auth_service: Authorized, role: Data<Scopes>) -> HttpResponse {
+    match auth_service.has_role(&role.list) {
+        Ok(_) => HttpResponse::Ok().json(auth_service.get_claims()),
+        Err(err) => err.error_response(),
+    }
 }
 
 #[post("/create")]
@@ -39,20 +46,23 @@ pub async fn authenticate(
     userdata: web::Json<Claim>,
     mongo_db: Data<Database>,
     role: web::Path<Role>,
-    session: Session,
+    jwt: Data<Jwt>,
 ) -> HttpResponse {
     match authenticate_user(mongo_db, userdata.into_inner(), role.into_inner()).await {
         Ok(output) => {
-            session.insert("POOP", format!("asdasd"));
+            let mut hmap = HashMap::new();
+            hmap.insert(format!("role"), json! {output.scope.to_string()});
+            hmap.insert(format!("user_id"), json! {output.user_id.to_string()});
+            let tokens = jwt.create_tokens(hmap).unwrap();
             HttpResponse::build(StatusCode::OK)
-                .cookie(Cookies::create_cookies(
+                .cookie(CookiesCreater::create_cookies(
                     "jwt_token",
-                    &output.token,
+                    &tokens.access_token,
                     "localhost",
-                    false,
+                    true,
                     None,
                 ))
-                .json(json! {output})
+                .json(json! {tokens})
         }
         Err(err) => HttpResponse::build(err.status).json(err.json),
     }
@@ -65,6 +75,9 @@ impl CreateScope for Users {
         return web::scope("/users")
             .service(test_token)
             .service(create)
-            .service(authenticate);
+            .service(authenticate)
+            .app_data(web::Data::new(Scopes {
+                list: vec!["admin".to_string(), "user".to_string()],
+            }));
     }
 }

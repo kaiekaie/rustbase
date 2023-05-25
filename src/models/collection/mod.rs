@@ -15,7 +15,7 @@ pub enum ColumnTypes {
     Relation,
     Date,
 }
-#[derive(Serialize, Debug, Deserialize, PartialEq)]
+#[derive(Serialize, Debug, Deserialize, PartialEq, Clone, Copy)]
 pub enum Role {
     Admin,
     User,
@@ -121,9 +121,15 @@ pub struct UserHash {
     pub hash: String,
     pub data: Document,
 }
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+pub struct ScopeUser {
+    pub scope: Role,
+    pub user_id: ObjectId,
+}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AuthResponse {
     pub token: String,
     pub data: Document,
+    pub scope_user: ScopeUser,
 }

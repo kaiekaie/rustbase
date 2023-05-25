@@ -8,19 +8,19 @@ use mongodb::Database;
 
 use crate::{
     lib::{
+        authorized::Authorized,
         data::{create_admin, create_first_admin},
-        utils::AuthorizationServiceAdmin,
     },
     models::collection::Claim,
 };
 
-use super::CreateScope;
+use crate::models::api::CreateScope;
 
 #[post("/create")]
 pub async fn create(
     user: web::Json<Claim>,
     mongo_db: Data<Database>,
-    _: AuthorizationServiceAdmin,
+    _: Authorized,
 ) -> HttpResponse {
     match create_admin(mongo_db, user.0).await {
         Ok(output) => HttpResponse::build(StatusCode::CREATED).json(output),
