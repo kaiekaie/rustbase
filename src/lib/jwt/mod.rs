@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use self::{keys::Keys, tokens::Tokens};
 
-const JWT_EXP_MINUTES: i64 = 15;
+const JWT_EXP_MINUTES: i64 = 30;
 const REFRESH_TOKEN_EXP_WEEKS: i64 = 52;
 
 pub fn get_access_expiration_seconds() -> i64 {

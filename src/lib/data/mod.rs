@@ -78,24 +78,48 @@ pub async fn add_record(
 
  */
 
+use std::result;
+
 use actix_web::{http::StatusCode, web::Data};
 
 use futures_util::StreamExt;
 
+use jsonwebtoken::errors::ErrorKind;
 use mongodb::{
-    bson::{self, doc, from_bson, oid::ObjectId, Bson, Document},
+    bson::{self, doc, from_bson, oid::ObjectId, to_bson, Bson, Document},
     error::Error,
-    options::{CountOptions, UpdateOptions},
-    Collection, Database,
+    options::{
+        CountOptions, CreateCollectionOptions, FindOneAndDeleteOptions, FindOneAndUpdateOptions,
+        ReturnDocument, UpdateOptions, ValidationAction, ValidationLevel,
+    },
+    results::{DeleteResult, InsertOneResult},
+    Client, Collection, Database,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::models::{
-    api::ApiResponse,
-    collection::{Admin, AuthResponse, Claim, Now, Role, ScopeUser, Secrets, UserHash, Users},
+use crate::{
+    get_db,
+    models::{
+        api::ApiResponse,
+        collection::{
+            self, Admin, AuthResponse, Claim, Documents, Now, Role, ScopeUser, Secrets, UserHash,
+            Users,
+        },
+    },
 };
 
 use super::encryption::{create_password_hash, verify_password};
+
+async fn insert_document_if_not_exists<T>(
+    collection: &Collection<T>,
+    filter: Document,
+    value: &Document,
+) -> Result<mongodb::results::UpdateResult, Error> {
+    let update = doc! { "$setOnInsert": value };
+    let options = UpdateOptions::builder().upsert(true).build();
+    collection.update_one(filter, update, options).await
+}
 
 pub async fn aggregate_on_collections<T>(
     database: Collection<T>,
@@ -365,50 +389,117 @@ pub async fn create_admin(mongo_db: Data<Database>, claim: Claim) -> Result<Valu
     }
 }
 
-fn create_refresh_token() {}
+#[derive(Debug)]
+pub struct CollectionCRUD {
+    db: Data<Database>,
 
-/* pub struct CRUD<'a> {
-    db: &'a Database,
-    name: String,
-    collection: Collection<Document>,
+    collection: Collection<Documents>,
 }
-impl CRUD<'_> {
-    fn new(db: &Database, name: String) -> CRUD {
-        let collection: Collection<Document> = db.collection(name.as_str());
-        CRUD {
-            db,
-            name,
-            collection,
-        }
+
+impl CollectionCRUD {
+    pub fn new(db: Data<Database>) -> CollectionCRUD {
+        let collection: Collection<Documents> = db.collection("collections");
+        CollectionCRUD { db, collection }
     }
-    pub async fn create(&self, document: Document) -> Result<InsertOneResult, Error> {
-        self.collection.insert_one(document, None).await
+    pub async fn create(&self, document: Documents) -> Result<(), Error> {
+        let document_clone = document.clone();
+        let name = &document.name;
+        insert_document_if_not_exists::<Documents>(
+            &self.collection,
+            doc! { "name":  name},
+            to_bson(&document_clone).unwrap().as_document().unwrap(),
+        )
+        .await?;
+
+        let option = CreateCollectionOptions::builder()
+            .validator(document.schemas)
+            .validation_action(ValidationAction::Error)
+            .validation_level(ValidationLevel::Moderate)
+            .build();
+        self.db.create_collection(name, option).await?;
+        Ok(())
     }
 
     pub async fn read(
         &self,
         filter: Option<Document>,
-    ) -> Result<Option<Document>, mongodb::error::Error> {
+    ) -> Result<Vec<Documents>, mongodb::error::Error> {
         let mut cursor = self.collection.find(filter, None).await?;
-        let mut document = None;
+        let mut documents: Vec<Documents> = vec![];
         while let Some(result) = cursor.next().await {
             match result {
                 Ok(document_ok) => {
-                    if !document_ok.is_empty() {
-                        document = Some(document_ok);
-                    }
+                    documents.push(document_ok);
                 }
                 Err(e) => {
                     println!("{:?}", e);
                 }
-            }
+            };
         }
-        Ok(document)
+        Ok(documents)
     }
-    fn update(&self) {
-        println!("Updating...");
+    pub async fn update(&self, new_document: Documents, id: String) -> Result<(), Error> {
+        let filter = doc! { "_id": ObjectId::parse_str(id).unwrap() };
+        let admin_db = get_db("admin").await;
+        let update = doc! { "$set":to_bson(&new_document).unwrap().as_document().unwrap() };
+        let new_document_clone = new_document.clone();
+
+        let updated = self
+            .collection
+            .find_one_and_update(
+                filter,
+                update,
+                FindOneAndUpdateOptions::builder()
+                    .return_document(ReturnDocument::Before)
+                    .build(),
+            )
+            .await?;
+
+        if let Some(document) = updated {
+            if (document.name != new_document_clone.name) {
+                admin_db
+                    .run_command(
+                        doc! {
+                          "renameCollection": format!("rustplatform.{}",document.name),
+                          "to":  format!("rustplatform.{}",new_document_clone.name),
+                          "dropTarget": false,
+                        },
+                        None,
+                    )
+                    .await?;
+            }
+            self.db
+                .run_command(
+                    doc! {
+                        "collMod": new_document_clone.name,
+                        "validator": new_document_clone.schemas
+                    },
+                    None,
+                )
+                .await?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
-    pub async fn delete(&self, id: ObjectId) -> Result<DeleteResult, mongodb::error::Error> {
-        self.collection.delete_one(doc! {"_id": id}, None).await
+    pub async fn delete(&self, id: String) -> Result<String, String> {
+        let filter = doc! { "_id": ObjectId::parse_str(id).unwrap() };
+
+        let deleted_result = self
+            .collection
+            .find_one_and_delete(filter, None)
+            .await
+            .map_err(|err| err.to_string())?;
+
+        if let Some(result) = deleted_result {
+            let collection: Collection<Document> = self.db.collection(result.name.as_str());
+            let dropped = collection.drop(None).await;
+            match dropped {
+                Ok(_) => Ok(format!("deleted collection: {}", result.name)),
+                Err(err) => Err(format!("{}", err.to_string())),
+            }
+        } else {
+            Err(format!("Can't find collection"))
+        }
     }
-} */
+}

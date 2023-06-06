@@ -83,6 +83,28 @@ db.createCollection("secrets", {
   },
 });
 
+db.createCollection("collections", {
+  validator: {
+    $jsonSchema: {
+      required: ["_id", "name"],
+      properties: {
+        _id: {
+          bsonType: "objectId",
+        },
+        name: {
+          bsonType: ["null", "date"],
+        },
+        created: {
+          bsonType: "date",
+        },
+        modified: {
+          bsonType: ["null", "date"],
+        },
+      },
+    },
+  },
+});
+
 db.createRole({
   role: "noSecretsAccess",
   privileges: [

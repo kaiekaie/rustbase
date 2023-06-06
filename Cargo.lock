@@ -1930,6 +1930,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mongodb-cursor-pagination"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f644d8ee8feefd20adb59bd951e7379df28fa064f28e36c11657080570dd73d"
+dependencies = [
+ "base64 0.21.0",
+ "bson",
+ "futures",
+ "futures-util",
+ "log",
+ "mongodb",
+ "serde",
+]
+
+[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2626,6 +2641,7 @@ dependencies = [
  "jwt",
  "log",
  "mongodb",
+ "mongodb-cursor-pagination",
  "pest",
  "pest_derive",
  "r2d2",

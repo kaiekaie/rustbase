@@ -19,6 +19,7 @@ use lib::utils::handler;
 use models::api::CreateScope;
 use mongodb::Client;
 
+use mongodb::Database;
 use routes::admins::Admins;
 use routes::collections::Collections;
 use routes::users::Users;
@@ -41,16 +42,20 @@ pub fn scopes() -> Scope {
     return api_scope;
 }
 
+pub async fn get_db(database_name: &str) -> Database {
+    dotenvy::dotenv().expect("missing .envfile");
+    let database: String = env::var("DATABASE_URL").expect("missing environment variable");
+    let client = Client::with_uri_str(database).await.unwrap();
+    let db: mongodb::Database = client.database("rustplatform");
+    client.database(database_name)
+}
+
 #[macro_use]
 extern crate pest_derive;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
-    dotenvy::dotenv().expect("missing .envfile");
-    let database = env::var("DATABASE_URL").expect("missing environment variable");
-    let client = Client::with_uri_str(database).await.unwrap();
-    let db: mongodb::Database = client.database("rustplatform");
+    let db = get_db("rustplatform").await;
 
     std::env::set_var("RUST_LOG", "actix_web=info");
     let secret_key = Key::generate();

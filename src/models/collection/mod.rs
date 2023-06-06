@@ -44,7 +44,10 @@ pub struct Schema {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 
 pub struct Documents {
-    #[serde(rename = "_id")]
+    #[serde(
+        default,
+        serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string"
+    )]
     pub id: ObjectId,
     pub name: String,
     #[serde(skip_deserializing)]
@@ -71,7 +74,7 @@ impl Default for Now {
 #[derive(Debug, Serialize, Deserialize)]
 
 pub struct Users {
-    #[serde(rename = "_id")]
+    #[serde(rename = "_id", skip_serializing)]
     pub id: ObjectId,
     pub username: String,
     pub name: Option<String>,
