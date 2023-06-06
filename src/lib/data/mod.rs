@@ -1,111 +1,24 @@
-/* use crate::models::collection::{self, Documents};
-
-use mongodb::{
-    bson::{doc, from_bson, oid::ObjectId, Bson, Document},
-    error::Error,
-    options::{CreateCollectionOptions, ValidationAction, ValidationLevel},
-    results::{DeleteResult, InsertOneResult},
-    Collection, Database,
-};
-
-use super::jwt_token::JwtUser;
-
-#[derive(Debug, Clone)]
-pub struct AppDataPool {
-    pub mongo: Database,
-}
-
-pub async fn create_collection(
-    database: Database,
-    document: Documents,
-) -> Result<Option<ObjectId>, Error> {
-    let borrowed = &document.schemas;
-    let option = CreateCollectionOptions::builder()
-        .validator(borrowed.to_owned())
-        .validation_action(ValidationAction::Error)
-        .validation_level(ValidationLevel::Moderate)
-        .build();
-    let documents_collection: Collection<Documents> = database.collection("documents");
-    let name = &document.name;
-    match database.create_collection(name, option).await {
-        Ok(_) => documents_collection
-            .insert_one(document, None)
-            .await
-            .map(|op| op.inserted_id.as_object_id()),
-        Err(e) => Err(e.into()),
-    }
-}
-
-pub async fn delete_collection(database: &Database, name: String) -> Result<(), Error> {
-    let collection: Collection<Document> = database.collection(name.as_str());
-    let documents_collection: Collection<Documents> = database.collection("documents");
-    match documents_collection
-        .delete_one(doc! {"name": name}, None)
-        .await
-    {
-        Ok(_) => collection.drop(None).await,
-        Err(e) => Err(e.into()),
-    }
-}
-
-pub async fn add_record(
-    database: &Database,
-    name: String,
-    document: Document,
-) -> Result<Option<Document>, Error> {
-    let documents_collection: Collection<Documents> = database.collection("documents");
-    let documents = documents_collection
-        .find_one(Some(doc! {"name":&name}), None)
-        .await?;
-    let record_collection = CRUD::new(database, name);
-    if let Some(document_from) = documents {
-        if !document_from.createrule.is_some() {
-            match record_collection.create(document).await {
-                Ok(res) => {
-                    record_collection
-                        .read(Some(doc! { "_id" : res.inserted_id}))
-                        .await
-                }
-                Err(e) => Err(e.into()),
-            }
-        } else {
-            Ok(None)
-        }
-    } else {
-        Ok(None)
-    }
-}
-
- */
-
-use std::result;
-
 use actix_web::{http::StatusCode, web::Data};
 
 use futures_util::StreamExt;
 
-use jsonwebtoken::errors::ErrorKind;
 use mongodb::{
     bson::{self, doc, from_bson, oid::ObjectId, to_bson, Bson, Document},
     error::Error,
     options::{
-        CountOptions, CreateCollectionOptions, FindOneAndDeleteOptions, FindOneAndUpdateOptions,
-        ReturnDocument, UpdateOptions, ValidationAction, ValidationLevel,
+        CountOptions, CreateCollectionOptions, FindOneAndUpdateOptions, ReturnDocument,
+        UpdateOptions, ValidationAction, ValidationLevel,
     },
-    results::{DeleteResult, InsertOneResult},
-    Client, Collection, Database,
+    Collection, Database,
 };
-use serde::{Deserialize, Serialize};
+
 use serde_json::{json, Value};
 
 use crate::{
     get_db,
     models::{
         api::ApiResponse,
-        collection::{
-            self, Admin, AuthResponse, Claim, Documents, Now, Role, ScopeUser, Secrets, UserHash,
-            Users,
-        },
+        collection::{Admin, Claim, Documents, Now, Role, ScopeUser, Secrets, UserHash, Users},
     },
 };
 
@@ -190,14 +103,16 @@ pub async fn create_user(mongo_db: Data<Database>, claim: Claim) -> Result<Value
                 json: error_parser(err),
                 status: StatusCode::BAD_REQUEST,
             })?;
-        let output = collection.find_one(Some(doc! {"_id": user_id}), None).await;
-        match output {
-            Ok(result) => Ok(json!(result)),
-            Err(err) => Err(ApiResponse {
+
+        let output = collection
+            .find_one(Some(doc! {"_id": user_id}), None)
+            .await
+            .map_err(|err| ApiResponse {
                 json: error_parser(err),
                 status: StatusCode::BAD_REQUEST,
-            }),
-        }
+            })?;
+
+        Ok(json!(output))
     } else {
         Err(ApiResponse {
             json: json! {{ "messsage" : format!("user already exist") }},
@@ -285,7 +200,6 @@ pub async fn authenticate_user(
                 status: StatusCode::BAD_REQUEST,
             });
         }
-
         Ok(ScopeUser {
             user_id: user_hash.user_id,
             scope: role,
@@ -307,23 +221,19 @@ pub async fn create_first_admin(
     let collection: mongodb::Collection<Admin> = mongo_db.collection("admins");
     let limit = collection
         .count_documents(doc! {}, CountOptions::builder().limit(1).build())
-        .await;
-
-    match limit {
-        Ok(limit) => {
-            if limit == 0 {
-                create_admin(mongo_db, claim).await
-            } else {
-                Err(ApiResponse {
-                    json: json! {{ "messsage" : format!("admin exists") }},
-                    status: StatusCode::BAD_REQUEST,
-                })
-            }
-        }
-        Err(err) => Err(ApiResponse {
+        .await
+        .map_err(|err| ApiResponse {
             json: json! {{ "messsage" : format!("{}",err) }},
             status: StatusCode::BAD_REQUEST,
-        }),
+        })?;
+
+    if limit == 0 {
+        create_admin(mongo_db, claim).await
+    } else {
+        Err(ApiResponse {
+            json: json! {{ "messsage" : format!("admin exists") }},
+            status: StatusCode::BAD_REQUEST,
+        })
     }
 }
 
@@ -373,14 +283,14 @@ pub async fn create_admin(mongo_db: Data<Database>, claim: Claim) -> Result<Valu
                 json: error_parser(err),
                 status: StatusCode::BAD_REQUEST,
             })?;
-        let output = collection.find_one(Some(doc! {"_id": user_id}), None).await;
-        match output {
-            Ok(result) => Ok(json!(result)),
-            Err(err) => Err(ApiResponse {
+        let output = collection
+            .find_one(Some(doc! {"_id": user_id}), None)
+            .await
+            .map_err(|err| ApiResponse {
                 json: error_parser(err),
                 status: StatusCode::BAD_REQUEST,
-            }),
-        }
+            })?;
+        Ok(json!(output))
     } else {
         Err(ApiResponse {
             json: json! {{ "messsage" : format!("user already exist") }},
@@ -493,11 +403,11 @@ impl CollectionCRUD {
 
         if let Some(result) = deleted_result {
             let collection: Collection<Document> = self.db.collection(result.name.as_str());
-            let dropped = collection.drop(None).await;
-            match dropped {
-                Ok(_) => Ok(format!("deleted collection: {}", result.name)),
-                Err(err) => Err(format!("{}", err.to_string())),
-            }
+            collection
+                .drop(None)
+                .await
+                .map_err(|err| format!("{}", err.to_string()))?;
+            Ok(format!("deleted collection: {}", result.name))
         } else {
             Err(format!("Can't find collection"))
         }

@@ -62,10 +62,8 @@ impl Authorized {
             let roles_result: Option<Data<Scopes>> =
                 Data::extract(&req).into_inner().map_or(None, |s| Some(s));
             if let Some(roles_result) = roles_result {
-                match authorized.has_role(&roles_result.list) {
-                    Ok(_) => Ok(authorized),
-                    Err(err) => Err(err),
-                }
+                authorized.has_role(&roles_result.list).map_err(|err| err)?;
+                Ok(authorized)
             } else {
                 Ok(authorized)
             }
