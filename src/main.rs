@@ -1,13 +1,18 @@
 #![allow(clippy::all)]
 #![allow(special_module_name)]
-
+#![feature(return_position_impl_trait_in_trait)]
 extern crate serde;
 
 use actix_cors::Cors;
 
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::cookie::Key;
+use actix_web::HttpResponse;
 
+use actix_web::dev::Service;
+use actix_web::http::header::HeaderName;
+use actix_web::http::header::HeaderValue;
+use actix_web::http::header::CONTENT_TYPE;
 use actix_web::middleware::Compress;
 use actix_web::middleware::Logger;
 
@@ -22,6 +27,7 @@ use mongodb::Client;
 use mongodb::Database;
 use routes::admins::Admins;
 use routes::collections::Collections;
+use routes::records::Records;
 use routes::users::Users;
 
 mod lib;
@@ -33,11 +39,12 @@ pub fn scopes() -> Scope {
     let user_scope = Users::create_scope();
     let collections_scope = Collections::create_scope();
     let admins_scope = Admins::create_scope();
-
+    let record_scope = Records::create_scope();
     let api_scope = web::scope("/api")
         .service(user_scope)
         .service(collections_scope)
         .service(admins_scope)
+        .service(record_scope)
         .default_service(web::to(handler));
     return api_scope;
 }

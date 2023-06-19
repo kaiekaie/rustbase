@@ -12,7 +12,7 @@ use crate::{lib::authorized::Authorized, models::api::Scopes};
 use crate::models::api::{ApiResponse, CreateScope};
 
 #[get("")]
-pub async fn get_collections(_: Authorized, db: Data<Database>) -> impl Responder {
+pub async fn get_collections(asd: Authorized, db: Data<Database>) -> impl Responder {
     let collection = CollectionCRUD::new(db);
     let read = collection.read(None).await;
     HttpResponse::Ok().json(read.ok())

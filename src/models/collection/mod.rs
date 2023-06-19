@@ -4,8 +4,6 @@ use mongodb::bson::{self, oid::ObjectId, Document};
 
 use serde::{Deserialize, Serialize};
 
-use super::rules::*;
-
 #[derive(Serialize, Debug, Deserialize)]
 
 pub enum ColumnTypes {
@@ -14,6 +12,15 @@ pub enum ColumnTypes {
     Mail,
     Relation,
     Date,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum Rules {
+    ListRule,
+    CreateRule,
+    ViewRule,
+    UpdateRule,
+    DeleteRule,
 }
 #[derive(Serialize, Debug, Deserialize, PartialEq, Clone, Copy)]
 pub enum Role {
@@ -54,11 +61,11 @@ pub struct Documents {
     pub created: Now,
     #[serde(skip_deserializing)]
     pub modified: Option<bson::DateTime>,
-    pub listrule: Option<ListRule>,
-    pub viewrule: Option<ViewRule>,
-    pub createrule: Option<CreateRule>,
-    pub updaterule: Option<UpdateRule>,
-    pub deleterule: Option<String>,
+    pub listRule: Option<String>,
+    pub viewRule: Option<String>,
+    pub createRule: Option<String>,
+    pub updateRule: Option<String>,
+    pub deleteRule: Option<String>,
     pub schemas: Document,
 }
 

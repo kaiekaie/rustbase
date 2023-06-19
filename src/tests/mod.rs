@@ -2,32 +2,39 @@
 mod tests {
     use std::{collections::HashMap, env};
 
-    use crate::{lib::jwt::Jwt, models::collection::Role, scopes};
+    use crate::{
+        lib::jwt::{tokens::Tokens, Jwt},
+        models::collection::Role,
+        scopes,
+    };
 
     use actix_web::{
         body::{self},
+
         http::StatusCode,
         test, web, App,
     };
-    use mongodb::bson::oid::ObjectId;
+
     use serde_json::{json, Value};
     use testcontainers::{clients, images::mongo::Mongo};
 
     #[actix_web::test]
     async fn test_login_fail() {
+        env::set_var("JWT_SECRET", "mycoolsecret");
         let app = test::init_service(
-            App::new().service(scopes()), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+            App::new().service(scopes()).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
         )
         .await;
         let req = test::TestRequest::get().uri("/api/users/test").to_request();
 
         let resp = test::call_service(&app, req).await;
-
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
         let bytes = body::to_bytes(resp.into_body()).await;
         assert_eq!(
             bytes.unwrap(),
-            web::Bytes::from_static(b"{\"error\":\"Missing authorization token\"}")
+            web::Bytes::from_static(
+                b"{\"message\":\"Bad header: 'Authorization'.\",\"code\":\"BAD_REQUEST\"}"
+            )
         );
     }
 
@@ -161,16 +168,32 @@ mod tests {
             "password" : "asdasd12dsd"
         }};
 
-        let create = test::TestRequest::post()
-            .uri("/api/users/create")
+        let create_first = test::TestRequest::post()
+            .uri("/api/admins/create/first")
             .set_json(user_json)
             .to_request();
 
-        let resp: actix_web::dev::ServiceResponse = test::call_service(&app, create).await;
+        let resp: actix_web::dev::ServiceResponse = test::call_service(&app, create_first).await;
         assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let user_json_2 = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
+
+        let authenticate_req = test::TestRequest::post()
+            .uri("/api/users/login/Admin")
+            .set_json(user_json_2)
+            .to_request();
+
+        let authenticate_resp: Tokens = test::call_and_read_body_json(&app, authenticate_req).await;
 
         let collections_request = test::TestRequest::get()
             .uri("/api/collections")
+            .append_header((
+                "Authorization",
+                format!("Bearer {}", authenticate_resp.access_token),
+            ))
             .to_request();
 
         let authenticate_resp: actix_web::dev::ServiceResponse =

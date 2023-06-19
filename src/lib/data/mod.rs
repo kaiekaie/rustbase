@@ -18,7 +18,9 @@ use crate::{
     get_db,
     models::{
         api::ApiResponse,
-        collection::{Admin, Claim, Documents, Now, Role, ScopeUser, Secrets, UserHash, Users},
+        collection::{
+            Admin, Claim, Documents, Now, Role, Rules, ScopeUser, Secrets, UserHash, Users,
+        },
     },
 };
 
@@ -302,7 +304,6 @@ pub async fn create_admin(mongo_db: Data<Database>, claim: Claim) -> Result<Valu
 #[derive(Debug)]
 pub struct CollectionCRUD {
     db: Data<Database>,
-
     collection: Collection<Documents>,
 }
 
@@ -410,6 +411,94 @@ impl CollectionCRUD {
             Ok(format!("deleted collection: {}", result.name))
         } else {
             Err(format!("Can't find collection"))
+        }
+    }
+}
+#[derive(Debug)]
+pub struct RecordCRUD {
+    db: Data<Database>,
+    record_name: String,
+    collection: Collection<Document>,
+}
+#[derive(Debug)]
+pub enum ValidateType {
+    OnlyAdmin,
+    ValidatedByEntries(String),
+    AllowAll,
+}
+
+impl RecordCRUD {
+    pub async fn new(db: Data<Database>, record_name: String) -> Option<RecordCRUD> {
+        let collection: Collection<Document> = db.collection(record_name.as_str());
+
+        let collection_names = db.list_collection_names(None).await;
+
+        match collection_names {
+            Ok(c_name) => {
+                if c_name.contains(&record_name) {
+                    Some(RecordCRUD {
+                        db,
+                        record_name,
+                        collection,
+                    })
+                } else {
+                    None
+                }
+            }
+            Err(err) => {
+                println!(" error {:?}", err);
+                return None;
+            }
+        }
+    }
+
+    pub async fn read_all(&self, filter: Document) -> Result<Vec<Document>, Error> {
+        let mut cursor = self.collection.find(filter, None).await?;
+        let mut documents: Vec<Document> = vec![];
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(document_ok) => {
+                    documents.push(document_ok);
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                }
+            };
+        }
+        Ok(documents)
+    }
+
+    pub async fn check_validate(
+        &self,
+        name: String,
+        request_type: Rules,
+    ) -> Result<ValidateType, String> {
+        let collections: Collection<Documents> = self.db.collection("collections");
+        let record = collections
+            .find_one(doc! {"name" : name}, None)
+            .await
+            .map_err(|err| err.to_string())?;
+        if let Some(record) = record {
+            let rule = match request_type {
+                Rules::ListRule => record.listRule,
+                Rules::CreateRule => record.createRule,
+                Rules::ViewRule => record.viewRule,
+                Rules::UpdateRule => record.updateRule,
+                Rules::DeleteRule => record.deleteRule,
+            };
+            let validated = if let Some(rule_to_check) = rule {
+                if rule_to_check.is_empty() {
+                    ValidateType::AllowAll
+                } else {
+                    ValidateType::ValidatedByEntries(rule_to_check)
+                }
+            } else {
+                ValidateType::OnlyAdmin
+            };
+
+            Ok(validated)
+        } else {
+            Err(format!("no recrod found"))
         }
     }
 }

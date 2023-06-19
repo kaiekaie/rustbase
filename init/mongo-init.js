@@ -92,7 +92,7 @@ db.createCollection("collections", {
           bsonType: "objectId",
         },
         name: {
-          bsonType: ["null", "date"],
+          bsonType: "string",
         },
         created: {
           bsonType: "date",

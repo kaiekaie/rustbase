@@ -50,6 +50,7 @@ pub fn set_jwt_token() {
 pub enum TokenType {
     access,
     refresh,
+    anonymous,
 }
 
 impl fmt::Display for TokenType {
@@ -124,6 +125,20 @@ impl Jwt {
         Ok(response)
     }
 
+    pub fn create_anonymous_claims(&self) -> HashMap<String, serde_json::Value> {
+        let mut hash_map: HashMap<String, serde_json::Value> = HashMap::new();
+        let duration = Duration::weeks(REFRESH_TOKEN_EXP_WEEKS);
+        hash_map.insert(
+            "exp".to_string(),
+            serde_json::Value::String(duration.to_string()),
+        );
+        hash_map.insert(
+            "type".to_string(),
+            serde_json::Value::String(TokenType::anonymous.to_string()),
+        );
+        hash_map
+    }
+
     fn create_jwt(
         extra_claims: &HashMap<String, serde_json::Value>,
         keys: &Keys,
@@ -133,6 +148,7 @@ impl Jwt {
         let expiration_duration = match r#type {
             TokenType::access => Duration::minutes(JWT_EXP_MINUTES),
             TokenType::refresh => Duration::weeks(REFRESH_TOKEN_EXP_WEEKS),
+            TokenType::anonymous => Duration::weeks(REFRESH_TOKEN_EXP_WEEKS),
         };
         claims.insert(
             "type".to_string(),
@@ -168,6 +184,7 @@ impl Jwt {
             jsonwebtoken::errors::ErrorKind::ExpiredSignature => match r#type {
                 TokenType::access => Error::access_token_expired(),
                 TokenType::refresh => Error::refresh_token_expired(),
+                TokenType::anonymous => Error::refresh_token_expired(),
             },
             _ => Error::identity_invalid(),
         })?

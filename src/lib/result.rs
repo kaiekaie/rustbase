@@ -49,7 +49,7 @@ impl Error {
         Self {
             code: ErrorCode::BadRequest,
             message: format!("Bad header: '{header_name}'."),
-            status: StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+            status: StatusCode::BAD_REQUEST,
         }
     }
 
