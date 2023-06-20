@@ -139,29 +139,9 @@ impl JoinOperator {
 }
 
 #[derive(Debug)]
-pub struct Filter {
-    auth: HashMap<String, serde_json::Value>,
-    header: FakeHeader,
-    database: Database,
-    statement: Option<Statement>,
-    collection: String,
-}
+pub struct Filter;
 
 impl Filter {
-    pub fn new(
-        auth: HashMap<String, serde_json::Value>,
-        header: FakeHeader,
-        database: Database,
-        collection: String,
-    ) -> Filter {
-        Filter {
-            auth: auth,
-            header: header,
-            database: database,
-            statement: None,
-            collection,
-        }
-    }
     pub fn input_to_statment(input: &str) -> Result<Statement, String> {
         let pairs = FilterParser::parse(Rule::statement, input);
         let mut expressions = Vec::new();
@@ -218,41 +198,41 @@ impl Filter {
         }
     }
 
-    pub async fn statement_operation(&mut self, input: &str) -> bool {
+    /*     pub async fn statement_operation(&mut self, input: &str) -> bool {
         let statement = Filter::input_to_statment(input).unwrap();
         self.statement = Some(statement);
         self.validate_statement().await
-    }
+    } */
 
-    pub async fn validate_statement(&self) -> bool {
-        let mut map = Vec::new();
-        if let Some(statement) = &self.statement {
-            for element in statement.expressions.iter() {
-                let left_value = self.replace_object(element.left.clone()).await;
-                let operator = element.op;
-                let right_value = self.replace_object(element.right.clone()).await;
-                let bools = values_checker(left_value, operator, right_value);
-                map.push(bools);
-            }
+    /*     pub async fn validate_statement(&self) -> bool {
+           let mut map = Vec::new();
+           if let Some(statement) = &self.statement {
+               for element in statement.expressions.iter() {
+                   let left_value = self.replace_object(element.left.clone()).await;
+                   let operator = element.op;
+                   let right_value = self.replace_object(element.right.clone()).await;
+                   let bools = values_checker(left_value, operator, right_value);
+                   map.push(bools);
+               }
 
-            if !statement.join_operators.is_empty() {
-                return statement
-                    .join_operators
-                    .iter()
-                    .zip(map.iter().enumerate())
-                    .fold(map[0], |acc, (&op, (i, _))| {
-                        let is_last = i == map.len() - 1;
-                        if is_last {
-                            JoinOperator::check_operator(op, acc, map[i])
-                        } else {
-                            JoinOperator::check_operator(op, map[i], map[i + 1])
-                        }
-                    });
-            }
-        }
-        map.iter().all(|&bool| bool)
-    }
-
+               if !statement.join_operators.is_empty() {
+                   return statement
+                       .join_operators
+                       .iter()
+                       .zip(map.iter().enumerate())
+                       .fold(map[0], |acc, (&op, (i, _))| {
+                           let is_last = i == map.len() - 1;
+                           if is_last {
+                               JoinOperator::check_operator(op, acc, map[i])
+                           } else {
+                               JoinOperator::check_operator(op, map[i], map[i + 1])
+                           }
+                       });
+               }
+           }
+           map.iter().all(|&bool| bool)
+       }
+    */
     fn bson_to_value(&self, document: Document, name: String) -> Value {
         if let Some(bson) = document.get(name) {
             match bson {
@@ -266,7 +246,7 @@ impl Filter {
         }
     }
 
-    pub async fn replace_object(&self, object: Object) -> Value {
+    /*     pub async fn replace_object(&self, object: Object) -> Value {
         match object {
             Object::Request(e) => match e {
                 RequestEnum::AuthObject(auth_keys) => match auth_keys {
@@ -300,7 +280,7 @@ impl Filter {
             Object::Number(s) => Value::Number(s),
             Object::Null => Value::None(),
         }
-    }
+    } */
 }
 
 fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Object {

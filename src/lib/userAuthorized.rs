@@ -8,6 +8,7 @@ use mongodb::Database;
 
 use crate::lib::data::RecordCRUD;
 
+use crate::lib::filter::Filter;
 use crate::lib::result::Error;
 use crate::models::collection::Rules;
 
@@ -44,15 +45,18 @@ impl FromRequest for UserAuthorized {
                     .check_validate(record_name.to_string(), func_rules_finder(request_name))
                     .await
                     .map_err(|err| Error::internal_error())?;
+
                 let authorized = match validate_check {
                     super::data::ValidateType::OnlyAdmin => {
                         Authorized::authorize(&req_clone, false)
                     }
-                    super::data::ValidateType::ValidatedByEntries(_) => {
+                    super::data::ValidateType::ValidatedByEntries(data) => {
+                        println!("{:?}", Filter::input_to_statment(data.as_str()));
                         Authorized::authorize(&req_clone, false)
                     }
                     super::data::ValidateType::AllowAll => Authorized::authorize(&req_clone, true),
                 }?;
+
                 Ok(UserAuthorized(authorized))
             } else {
                 Err(Error::not_found(record_name))
