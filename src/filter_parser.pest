@@ -1,0 +1,23 @@
+//grammar;
+operator = { "=" | "!=" | ">" | ">=" | "<" | "<=" | "~" | "!~" | "?=" | "?!=" }
+join_operator = { "&&" | "||" }
+whitespace = _{ " " | "\t" | "\r" | "\n" }
+
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+identifier = @{ (ASCII_ALPHA | "_" | "@" | "#") ~ (ASCII_ALPHANUMERIC | "_" | ":" )*  }
+quoted_text = @{ ("'" ~ (!"'" ~ ANY)* ~ "'") | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
+
+expression = { (number | null | fixed_object | identifier | quoted_text ) ~ whitespace? ~ operator ~ whitespace? ~ ( number | null | fixed_object | identifier | quoted_text) }
+statement = { expression ~ (whitespace? ~ join_operator ~ whitespace? ~ expression)* }
+fixed_object = { ( request | collection ) }
+request = { "@request" ~ "." ~ (auth | header | body)}
+body = { "body" ~ "." ~ identifier }
+auth = { "auth"  ~ "." ~ auth_keys  }
+null = @{ ("'" ~ null_text ~ "'") | ("\"" ~ null_text ~ "\"") }
+null_text = { ("NULL" | "null" | "" )}
+auth_keys = { ( "id" | "role" )}
+header_keys = { ("method" | "status" ) }
+header = { "header" ~ "." ~ header_keys }
+collection = { "@collection" ~ "." ~ collection_name ~ "." ~ collection_column }
+collection_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+collection_column = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }

@@ -1,40 +1,68 @@
 #[cfg(test)]
-mod test {
+mod tests {
+    use std::{collections::HashMap, env};
 
-    use chrono::Utc;
-    use mongodb::bson::{doc, Document};
+    use crate::{
+        lib::jwt::{tokens::Tokens, Jwt},
+        models::collection::Role,
+        scopes,
+    };
 
-    use mongodb::bson::oid::ObjectId;
-    use rocket::http::{Header, Status};
+    use actix_web::{
+        body::{self},
 
-    use serde_json::json;
-    use testcontainers::images::mongo::Mongo;
-    use testcontainers::*;
+        http::StatusCode,
+        test, web, App,
+    };
 
-    use crate::lib::data::create_collection;
-    use crate::lib::encryption::{create_password_hash, verify_password};
-    use crate::lib::jwt_token::create_jwt;
-    use crate::models::collection::{Documents, Now, Users};
+    use serde_json::{json, Value};
+    use testcontainers::{clients, images::mongo::Mongo};
 
-    use super::super::rocket;
-    use rocket::local::asynchronous::Client;
-    use std::env;
+    #[actix_web::test]
+    async fn test_login_fail() {
+        env::set_var("JWT_SECRET", "mycoolsecret");
+        let app = test::init_service(
+            App::new().service(scopes()).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/api/users/test").to_request();
 
-    #[rocket::async_test]
-    async fn get_route() {
-        let client = Client::tracked(rocket().await)
-            .await
-            .expect("valid rocket instance");
-
-        let req = client.get("/api/hello");
-        let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
-        assert_eq!(r1.status(), r2.status());
-        assert_eq!(r1.status(), Status::Ok);
-        assert_eq!(r1.into_string().await.unwrap(), "hello world");
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = body::to_bytes(resp.into_body()).await;
+        assert_eq!(
+            bytes.unwrap(),
+            web::Bytes::from_static(
+                b"{\"message\":\"Bad header: 'Authorization'.\",\"code\":\"BAD_REQUEST\"}"
+            )
+        );
     }
 
-    #[rocket::async_test]
-    async fn test_db() {
+    #[actix_web::test]
+    async fn test_login_ok() {
+        env::set_var("JWT_SECRET", "mycoolsecret");
+        let app = test::init_service(
+            App::new().service(scopes()).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+        )
+        .await;
+
+        let mut hmap = HashMap::new();
+        hmap.insert(format!("role"), json! {"user"});
+        hmap.insert(format!("user_id"), json! {"asdasd"});
+        let tokens = Jwt::new(None).create_tokens(hmap).unwrap();
+        let req = test::TestRequest::get()
+            .uri("/api/users/test")
+            .insert_header(("Authorization", format!("Bearer {}", tokens.access_token)))
+            .to_request();
+
+        let body = test::call_service(&app, req).await;
+        assert_eq!(body.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_create_user() {
+        env::set_var("JWT_SECRET", "mycoolsecret");
+
         let docker = clients::Cli::default();
         let container = docker.run(Mongo::default());
 
@@ -45,135 +73,135 @@ mod test {
         let client = mongodb::Client::with_uri_str(mysql_url).await;
 
         let db = client.unwrap().database("rustplatform");
-        let dockument = doc! {
-          "tester" : "asdasd"
-        };
+        let app = test::init_service(
+            App::new().service(scopes()).app_data(web::Data::new(db.clone())).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+        )
+        .await;
 
-        let collection: mongodb::Collection<_> = db.collection("testcollection");
-        let instesr = collection.insert_one(dockument, None).await.unwrap();
+        let user_json = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
 
-        assert_eq!(instesr.inserted_id.to_string().len(), 36);
+        let req = test::TestRequest::post()
+            .uri("/api/users/create")
+            .set_json(user_json)
+            .to_request();
 
-        let output = collection
-            .find_one(Some(doc! {"_id": instesr.inserted_id}), None)
-            .await
-            .expect("Query result not found");
+        let resp: actix_web::dev::ServiceResponse = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let bytes = body::to_bytes(resp.into_body()).await.unwrap();
+        let jsn: Value = serde_json::from_slice(&bytes).unwrap();
 
-        println!("{:?}", output);
-        let valye = output.unwrap();
-        let object = json!(&valye);
-
-        assert_eq!(object["tester"], "asdasd");
+        assert_eq!(jsn.get("username").unwrap(), "magnus@asdasd.com");
     }
 
-    #[rocket::async_test]
-    async fn failing_test_jwt() {
-        let client = Client::tracked(rocket().await)
-            .await
-            .expect("valid rocket instance");
-        let req = client.get("/api/get_collections");
-        let (r1, r2) = rocket::tokio::join!(req.clone().dispatch(), req.dispatch());
-        assert_eq!(r1.status(), r2.status());
-        assert_eq!(r1.status(), Status::Unauthorized);
-    }
-
-    #[rocket::async_test]
-    async fn nice_test_jwt() {
-        let docker = clients::Cli::default();
-        let container = docker.run(Mongo::default());
-
-        let mysql_port = container.get_host_port_ipv4(27017);
-
-        let mongourl = format!("mongodb://localhost:{}", mysql_port);
-
-        env::set_var("DATABASE_URL", &mongourl);
+    #[actix_web::test]
+    async fn test_create_and_authenticate_user() {
         env::set_var("JWT_SECRET", "mycoolsecret");
 
-        let client = mongodb::Client::with_uri_str(&mongourl).await;
-
-        let db = client.unwrap().database("rustplatform");
-        let dockument = doc! {
-          "tester" : "asdasd"
-        };
-
-        let collection: mongodb::Collection<_> = db.collection("testcollection");
-        collection.insert_one(dockument, None).await.unwrap();
-        let client = Client::tracked(rocket().await)
-            .await
-            .expect("valid rocket instance");
-        let user = Users {
-            id: ObjectId::new(),
-            username: format!("tester"),
-            name: None,
-            modified: None,
-            created: Now(Utc::now()),
-        };
-        let token = create_jwt("tester", user).unwrap();
-
-        let request = client.get("/api/get_collections");
-        let request = request.header(Header::new("Authorization", format!("Bearer {}", token)));
-
-        let (r1, r2) = rocket::tokio::join!(request.clone().dispatch(), request.dispatch());
-        assert_eq!(r1.status(), r2.status());
-        assert_eq!(r1.status(), Status::Ok);
-        let value = json!(r1.into_string().await.unwrap());
-
-        assert_eq!(value, "[\"testcollection\"]");
-    }
-
-    #[test]
-    fn verify_the_password() {
-        let password = b"asdas";
-        let hash = create_password_hash(password);
-
-        assert!(verify_password(password, hash));
-    }
-
-    #[test]
-    fn wrong_password() {
-        let password = b"asdas";
-        let hash = create_password_hash(password);
-        let pass_wrong = b"tester";
-        assert!(!verify_password(pass_wrong, hash));
-    }
-
-    #[rocket::async_test]
-    async fn create_collection_fn() {
         let docker = clients::Cli::default();
         let container = docker.run(Mongo::default());
 
         let mysql_port = container.get_host_port_ipv4(27017);
-
+        println!("{}", mysql_port);
         let mysql_url = format!("mongodb://localhost:{}", mysql_port);
 
         let client = mongodb::Client::with_uri_str(mysql_url).await;
 
         let db = client.unwrap().database("rustplatform");
+        let app = test::init_service(
+            App::new().service(scopes()).app_data(web::Data::new(db.clone())).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+        )
+        .await;
 
-        let validation_rule: Document = doc! {
-                "$jsonSchema": {
-                    "bsonType": "object",
-                    "required": ["name", "age"],
-                    "properties": {
-                        "name": { "bsonType": "string" },
-                        "age": { "bsonType": "int" }
-                    }
-                }
+        let user_json = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
 
-        };
-        let document = Documents {
-            id: ObjectId::new(),
-            name: format!("tester"),
-            created: Utc::now(),
-            listrule: None,
-            createrule: None,
-            modified: None,
-            viewrule: None,
-            updaterule: None,
-            deleterule: None,
-            schemas: validation_rule,
-        };
-        let res = create_collection(db, document).await;
-        assert!(res.is_ok())
+        let create = test::TestRequest::post()
+            .uri("/api/users/create")
+            .set_json(user_json)
+            .to_request();
+
+        let resp: actix_web::dev::ServiceResponse = test::call_service(&app, create).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let user_json_two = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
+
+        let authenticate_req = test::TestRequest::post()
+            .uri("/api/users/login/User")
+            .set_json(user_json_two)
+            .to_request();
+
+        let authenticate_resp: actix_web::dev::ServiceResponse =
+            test::call_service(&app, authenticate_req).await;
+
+        assert_eq!(authenticate_resp.status(), StatusCode::OK);
     }
+
+    #[actix_web::test]
+    async fn test_user_accsess_collections() {
+        env::set_var("JWT_SECRET", "mycoolsecret");
+
+        let docker = clients::Cli::default();
+        let container = docker.run(Mongo::default());
+
+        let mysql_port = container.get_host_port_ipv4(27017);
+        println!("{}", mysql_port);
+        let mysql_url = format!("mongodb://localhost:{}", mysql_port);
+
+        let client = mongodb::Client::with_uri_str(mysql_url).await;
+
+        let db = client.unwrap().database("rustplatform");
+        let app = test::init_service(
+            App::new().service(scopes()).app_data(web::Data::new(db.clone())).app_data(web::Data::new(Jwt::new(None))), /*        .app_data(web::Data::new(AppState { count: 4 })) */
+        )
+        .await;
+
+        let user_json = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
+
+        let create_first = test::TestRequest::post()
+            .uri("/api/admins/create/first")
+            .set_json(user_json)
+            .to_request();
+
+        let resp: actix_web::dev::ServiceResponse = test::call_service(&app, create_first).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let user_json_2 = json! {{
+            "username" :"magnus@asdasd.com",
+            "password" : "asdasd12dsd"
+        }};
+
+        let authenticate_req = test::TestRequest::post()
+            .uri("/api/users/login/Admin")
+            .set_json(user_json_2)
+            .to_request();
+
+        let authenticate_resp: Tokens = test::call_and_read_body_json(&app, authenticate_req).await;
+
+        let collections_request = test::TestRequest::get()
+            .uri("/api/collections")
+            .append_header((
+                "Authorization",
+                format!("Bearer {}", authenticate_resp.access_token),
+            ))
+            .to_request();
+
+        let authenticate_resp: actix_web::dev::ServiceResponse =
+            test::call_service(&app, collections_request).await;
+
+        assert_eq!(authenticate_resp.status(), StatusCode::OK);
+    }
+
+
+    
 }

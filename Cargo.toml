@@ -5,15 +5,12 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-
-
-
 [dependencies]
 
 serde = { version = "1.0", features = ["derive"] }
 dotenvy = "0.15"
 serde_json = "1.0"
-rocket =  {version = "0.5.0-rc.2" , features = ["secrets","json"]}
+
 testcontainers = "0.14.0"
 chrono = {version = "0.4.3",features = ["serde"]}
 rocket_dyn_templates = { version = "0.1.0-rc.2", features = ["tera"] }
@@ -26,7 +23,18 @@ tokio = { version = "1.0", features = ["full"] }
 r2d2 = "0.8.10"
 argon2 = "0.5.0"
 base64 = "0.21.0"
-
+pest = "2.5.7"
+pest_derive = "2.1"
+actix-web = "4.3.1"
+actix-web-actors = "4.2.0"
+env_logger = "0.10.0"
+futures-util = "0.3.28"
+futures = "0.3.28"
+actix-cors = "0.6.4"
+log = "0.4.17"
+actix-session = { version = "0.7.2", features = ["cookie-session"] }
+actix-web-httpauth = "0.8.0"
+mongodb-cursor-pagination = "0.3.2"
 
 [[bin]]
 name = "rustdeployment"

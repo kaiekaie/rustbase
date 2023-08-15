@@ -1,26 +1,22 @@
 name: Rust
-
 on:
   pull_request:
     paths:
       - "src/**/*"
       - "cargo.toml"
     branches: ["main"]
-
 env:
   CARGO_TERM_COLOR: always
   DATABASE_URL: "mongodb://localhost:1234"
-
 jobs:
   build_and_test:
     name: Rust project - latest
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         toolchain:
-          - stable
-          - beta
+          # - stable
+          #- beta
           - nightly
     steps:
       - uses: actions/checkout@v3
