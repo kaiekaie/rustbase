@@ -85,7 +85,7 @@ pub struct Users {
     pub id: ObjectId,
     pub username: String,
     pub name: Option<String>,
-    #[serde(skip_deserializing)]
+
     pub created: Now,
     #[serde(skip_deserializing)]
     pub modified: Option<bson::DateTime>,
